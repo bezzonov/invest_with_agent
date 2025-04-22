@@ -3,6 +3,7 @@ import pandas as pd
 import pandas as pd
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine, TIMESTAMP
+from scripts.data_filling import fill_data
 
 def connection():
     db_params = {
@@ -26,17 +27,17 @@ def show_metrics(metrics):
             st.markdown(
                 f"""
                 <div style="
-                    border: 2px solid #ccc;
-                    border-radius: 8px;
+                    border: 1px solid #d3d3d3;
+                    border-radius: 10px;
                     padding: 5px;
                     margin-bottom:20px;
                     text-align: center;
-                    background-color: #f9f9f9;
+                    background-color: white;
                     ">
-                    <div style="font-size: 18px; font-weight: bold; color: #333;">
+                    <div style="font-size: 16px; font-weight: bold; color: #404040;">
                         {format_number(value)}
                     </div>
-                    <div style="font-size: 12px; color: #666;">
+                    <div style="font-size: 12px; color: solid #d3d3d3;">
                         {label}
                     </div>
                 </div>
@@ -51,9 +52,10 @@ def calc_metrics(conn, ticker, table_name, threshold_date):
                                 where ticker = '{ticker}'
                                 and time >= '{threshold_date}'
                             """, conn)
-    price_today = data['close'][data['time'] == max(data.time)].values[0]
-    price_year_ago = data['close'][data['time'] == datetime.strftime(datetime.today() - timedelta(days=364), '%Y-%m-%d')].values[0]
-    price_month_ago = data['close'][data['time'] == datetime.strftime(datetime.today() - timedelta(days=7*4), '%Y-%m-%d')].values[0]
+    full_data = fill_data(data)
+    price_today = full_data['close'][full_data['time'] == max(full_data.time)].values[0]
+    price_year_ago = full_data['close'][full_data['time'] == datetime.strftime(datetime.today() - timedelta(days=365), '%Y-%m-%d')].values[0]
+    price_month_ago = full_data['close'][full_data['time'] == datetime.strftime(datetime.today() - timedelta(days=30), '%Y-%m-%d')].values[0]
 
     metrics = {
         'Текущая стоимость' : f"{price_today} руб.",

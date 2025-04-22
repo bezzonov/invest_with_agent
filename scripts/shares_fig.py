@@ -2,6 +2,7 @@ import plotly.graph_objects as go
 import pandas as pd
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine, TIMESTAMP
+from scripts.data_filling import fill_data
 
 def connection():
     db_params = {
@@ -18,14 +19,17 @@ def plot_price_chart(conn, ticker, table_name, threshold_date):
                                     from {table_name}
                                     where ticker = '{ticker}'
                                     and time >= '{threshold_date}'""", conn)
+
+    full_shares_data = fill_data(shares_data)
+
     fig = go.Figure()
 
     fig.add_trace(go.Candlestick(
-        x=shares_data['time'],
-        open=shares_data['open'],
-        high=shares_data['high'],
-        low=shares_data['low'],
-        close=shares_data['close'],
+        x=full_shares_data['time'],
+        open=full_shares_data['open'],
+        high=full_shares_data['high'],
+        low=full_shares_data['low'],
+        close=full_shares_data['close'],
         name=ticker,
         visible=False
     ))
