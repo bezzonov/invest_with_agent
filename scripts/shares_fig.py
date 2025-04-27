@@ -49,8 +49,6 @@ def plot_price_chart(conn, ticker, table_name, threshold_date):
         }],
         height=450,
         width=1300
-
-
     )
 
     return fig

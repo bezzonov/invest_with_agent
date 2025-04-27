@@ -17,7 +17,7 @@ def connection():
 
 def format_number(value):
     if isinstance(value, (int, float)):
-        return f"{value:,.2f}" if isinstance(value, float) else f"{value:,}"
+        return f"{value:,.4f}" if isinstance(value, float) else f"{value:,}"
     return str(value)
 
 def show_metrics(metrics):

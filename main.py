@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 from scripts.actual_shares_list import shares_list
-from scripts.config import stock_info
+from scripts.config import stock_info, model_info
 from scripts.shares_fig import plot_price_chart
 from scripts.connection import connection
 from scripts.metrics import show_metrics, calc_metrics
@@ -23,18 +23,21 @@ if "current_stock" not in st.session_state:
     st.session_state.current_stock = None
 
 def main_page():
-    st.markdown("### Параметры торговли")
+    st.markdown("#### Параметры торговли")
 
     if "selected_stocks" not in st.session_state:
         st.session_state.selected_stocks = []
+    if "selected_model" not in st.session_state:
+        st.session_state.selected_model = None
 
     # Используем временную переменную для выбора в форме
     with st.form("stock_form"):
         selected = st.multiselect(
-            "Выберите акции",
+            "Акции",
             options=list(shares_list.keys()),
             format_func=lambda x: f"{shares_list[x]} ({x})",
-            default=st.session_state.selected_stocks
+            default=st.session_state.selected_stocks,
+            placeholder ='Выберите акции'
         )
 
         capital = st.number_input("Капитал для торговли (руб.)", min_value=10000, max_value=5_000_000, step=10000, value=10_000)
@@ -56,25 +59,43 @@ def main_page():
                                     min_value=min_end_date.date(),
                                     max_value=max_end_date.date())
 
+        selected_model = st.selectbox(
+            "Выберите модель:",
+            options=list(model_info.keys()),
+            index=list(model_info.keys()).index(st.session_state.selected_model) if st.session_state.selected_model in model_info else 0
+        )
+        st.session_state.selected_model = selected_model
+
+        # if selected_model == "":
+        #     selected_model = None
+
+        param1 = st.number_input("Параметр 1: learning rate", min_value=0.0001, max_value=1.0, value=0.001, step=0.0001, format="%.4f")
+        param2 = st.slider("Параметр 2: batch size", min_value=16, max_value=512, value=128, step=16)
+        param3 = st.selectbox("Параметр 3: optimizer", options=["Adam", "RMSprop", "SGD"])
+
         submitted = st.form_submit_button("Подтвердить выбор")
 
-        if submitted:
-            if not selected:
-                st.error("Пожалуйста, выберите хотя бы одну акцию.")
-            elif start_date < min_start_date.date() or start_date > max_start_date.date():
-                st.error(f"Дата начала должна быть в диапазоне с {min_start_date.strftime('%d.%m.%Y')} по {max_start_date.strftime('%d.%m.%Y')}")
-            elif end_date < min_end_date.date() or end_date > max_end_date.date():
-                st.error(f"Дата окончания должна быть в диапазоне с {min_end_date.strftime('%d.%m.%Y')} по {max_end_date.strftime('%d.%m.%Y')}")
-            elif start_date > end_date:
-                st.error("Дата начала не может быть позже даты окончания.")
-            elif (end_date - start_date).days < 7:
-                st.error("Выберите более длительный период для торговли (от 7 дней)")
-            else:
-                st.session_state.selected_stocks = selected
-                st.session_state.capital = capital
-                st.session_state.start_date = start_date
-                st.session_state.end_date = end_date
-                st.rerun()
+# -----------------------------------------------------------------------------------------------------------------------------------
+
+    if submitted:
+        if not selected:
+            st.error("Пожалуйста, выберите хотя бы одну акцию.")
+        elif not selected_model:
+            st.error("Пожалуйста, выберите хотя модель.")
+        elif start_date < min_start_date.date() or start_date > max_start_date.date():
+            st.error(f"Дата начала должна быть в диапазоне с {min_start_date.strftime('%d.%m.%Y')} по {max_start_date.strftime('%d.%m.%Y')}")
+        elif end_date < min_end_date.date() or end_date > max_end_date.date():
+            st.error(f"Дата окончания должна быть в диапазоне с {min_end_date.strftime('%d.%m.%Y')} по {max_end_date.strftime('%d.%m.%Y')}")
+        elif start_date > end_date:
+            st.error("Дата начала не может быть позже даты окончания.")
+        elif (end_date - start_date).days < 7:
+            st.error("Выберите более длительный период для торговли (от 7 дней)")
+        else:
+            st.session_state.selected_stocks = selected
+            st.session_state.capital = capital
+            st.session_state.start_date = start_date
+            st.session_state.end_date = end_date
+            st.rerun()
 
     if st.session_state.selected_stocks:
         st.success("Выбранные параметры торговли:")
@@ -100,10 +121,25 @@ def main_page():
                       'Дата начала': start_date,
                       'Дата окончания': end_date,
                       })
+
+        if st.button(f"{selected_model}"):
+            st.session_state.page = "model_detail"
+            st.rerun()
+
+        show_metrics({'learning rate': param1,
+                      'batch size': param2,
+                      'optimizer': param3,
+                      })
     else:
-        st.info("Выберите акции, капитал и период торговли.")
+        st.info("Выберите параметры торговли.")
 
+def model_detail_page():
+    st.markdown(f"### {st.session_state.selected_model}")
+    st.text_area("О модели", model_info.get(st.session_state.selected_model, "Описание отсутствует."), height=400)
 
+    if st.button("Назад"):
+        st.session_state.page = "main"
+        st.rerun()
 
 def detail_page():
     ticker = st.session_state.current_stock
@@ -131,3 +167,5 @@ if st.session_state.page == "main":
     main_page()
 elif st.session_state.page == "detail":
     detail_page()
+elif st.session_state.page == "model_detail":
+    model_detail_page()
