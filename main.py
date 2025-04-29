@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 from scripts.actual_shares_list import shares_list
-from scripts.config import stock_info, model_info
+from scripts.config import stock_info, model_info, model_params
 from scripts.shares_fig import plot_price_chart
 from scripts.connection import connection
 from scripts.metrics import show_metrics, calc_metrics
@@ -60,18 +60,11 @@ def main_page():
                                     max_value=max_end_date.date())
 
         selected_model = st.selectbox(
-            "Выберите модель:",
+            "Модель",
             options=list(model_info.keys()),
             index=list(model_info.keys()).index(st.session_state.selected_model) if st.session_state.selected_model in model_info else 0
         )
         st.session_state.selected_model = selected_model
-
-        # if selected_model == "":
-        #     selected_model = None
-
-        param1 = st.number_input("Параметр 1: learning rate", min_value=0.0001, max_value=1.0, value=0.001, step=0.0001, format="%.4f")
-        param2 = st.slider("Параметр 2: batch size", min_value=16, max_value=512, value=128, step=16)
-        param3 = st.selectbox("Параметр 3: optimizer", options=["Adam", "RMSprop", "SGD"])
 
         submitted = st.form_submit_button("Подтвердить выбор")
 
@@ -98,7 +91,7 @@ def main_page():
             st.rerun()
 
     if st.session_state.selected_stocks:
-        st.success("Выбранные параметры торговли:")
+        st.success("Параметры торговли сохранены!")
         stocks = st.session_state.selected_stocks
         for i in range(0, len(stocks), 2):
             cols = st.columns(2)
@@ -125,13 +118,58 @@ def main_page():
         if st.button(f"{selected_model}"):
             st.session_state.page = "model_detail"
             st.rerun()
-
-        show_metrics({'learning rate': param1,
-                      'batch size': param2,
-                      'optimizer': param3,
-                      })
     else:
         st.info("Выберите параметры торговли.")
+
+# ------------------------------------------------------
+    st.markdown("#### Параметры модели")
+
+    with st.form("model_params_form"):
+        params = model_params[selected_model]
+
+        # Динамически отображаем параметры
+        for key, param in params.items():
+            if param["type"] == "number_input":
+                st.session_state[key] = st.number_input(
+                    param["label"],
+                    min_value=param["min_value"],
+                    max_value=param["max_value"],
+                    value=param["value"],
+                    step=param["step"],
+                    format=param["format"]
+                )
+            elif param["type"] == "slider":
+                st.session_state[key] = st.slider(
+                    param["label"],
+                    min_value=param["min_value"],
+                    max_value=param["max_value"],
+                    value=param["value"],
+                    step=param["step"]
+                )
+            elif param["type"] == "selectbox":
+                st.session_state[key] = st.selectbox(
+                    param["label"],
+                    options=param["options"]
+                )
+
+        submitted_params = st.form_submit_button("Подтвердить выбор")
+
+    if submitted_params:
+        selected_params = {key: st.session_state[key] for key in params.keys()}
+        st.session_state.selected_params = selected_params
+        st.success("Параметры модели сохранены!")
+    else:
+        st.info("Выберите параметры модели.")
+
+
+    if "selected_params" in st.session_state:
+        st.markdown("### Текущие параметры:")
+        st.json(st.session_state.selected_params)
+
+
+
+
+# ------------------------------------------------------------------------
 
 def model_detail_page():
     st.markdown(f"### {st.session_state.selected_model}")

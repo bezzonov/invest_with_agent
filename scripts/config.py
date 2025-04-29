@@ -155,4 +155,25 @@ Replay Buffer: TD3 использует буфер повторного восп
 
 Практическая применимость: TD3 демонстрирует state-of-the-art результаты на многих стандартных тестах по обучению с подкреплением."""}
 
-model_info
+model_params = {
+
+    "A2C (Advantage Actor Critic)" : {
+        'learning_rate' : {"label": "learning rate", "type": "slider", "min_value": 0.0001, "max_value": 1.0, "value": 0.001, "step": 0.0001, "format": "%.4f"},
+        'ent_coef' :      {"label": "ent_coef", "type": "slider", "min_value": 0.01, "max_value": 1.0, "value": 0.01, "step": 0.01, "format": "%.3f"}
+
+    },
+
+    "PPO (Proximal Policy Optimization)" : {
+        'aaaaaa' : {"label": "aaaaaa rate", "type": "slider", "min_value": 0.0001, "max_value": 1.0, "value": 0.001, "step": 0.0001, "format": "%.4f"},
+        'bbbbbb' :      {"label": "bbbbbb", "type": "slider", "min_value": 0.01, "max_value": 1.0, "value": 0.01, "step": 0.01, "format": "%.3f"}
+
+    }
+
+
+
+    #  "param1": {"label": "Learning Rate", "type": "number_input", "min_value": 0.0001, "max_value": 1.0, "value": 0.001, "step": 0.0001, "format": "%.4f"}
+# "param2": {"label": "Batch Size", "type": "slider", "min_value": 16, "max_value": 512, "value": 128, "step": 16},
+#         "param3": {"label": "Optimizer", "type": "selectbox", "options": ["Adam", "RMSprop", "SGD"]}
+
+
+}
