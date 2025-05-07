@@ -23,6 +23,7 @@ if "current_stock" not in st.session_state:
     st.session_state.current_stock = None
 
 def main_page():
+    st.title("📈| RL Trade Agent")
     st.markdown("#### Параметры торговли")
 
     if "selected_stocks" not in st.session_state:
@@ -127,30 +128,39 @@ def main_page():
     with st.form("model_params_form"):
         params = model_params[selected_model]
 
-        # Динамически отображаем параметры
+        cols = st.columns(2)
+        col_index = 0
+
         for key, param in params.items():
-            if param["type"] == "number_input":
-                st.session_state[key] = st.number_input(
-                    param["label"],
-                    min_value=param["min_value"],
-                    max_value=param["max_value"],
-                    value=param["value"],
-                    step=param["step"],
-                    format=param["format"]
-                )
-            elif param["type"] == "slider":
-                st.session_state[key] = st.slider(
-                    param["label"],
-                    min_value=param["min_value"],
-                    max_value=param["max_value"],
-                    value=param["value"],
-                    step=param["step"]
-                )
-            elif param["type"] == "selectbox":
-                st.session_state[key] = st.selectbox(
-                    param["label"],
-                    options=param["options"]
-                )
+            with cols[col_index]:
+                if param["type"] == "number_input":
+                    st.session_state[key] = st.number_input(
+                        param["label"],
+                        min_value=param["min_value"],
+                        max_value=param["max_value"],
+                        value=param["value"],
+                        step=param["step"],
+                        format=param["format"],
+                        help=param['help']
+                    )
+                elif param["type"] == "slider":
+                    st.session_state[key] = st.slider(
+                        param["label"],
+                        min_value=param["min_value"],
+                        max_value=param["max_value"],
+                        value=param["value"],
+                        step=param["step"],
+                        help=param['help']
+
+                    )
+                elif param["type"] == "selectbox":
+                    st.session_state[key] = st.selectbox(
+                        param["label"],
+                        options=param["options"],
+                        help=param['help']
+
+                    )
+            col_index = (col_index + 1) % 2
 
         submitted_params = st.form_submit_button("Подтвердить выбор")
 
@@ -158,13 +168,37 @@ def main_page():
         selected_params = {key: st.session_state[key] for key in params.keys()}
         st.session_state.selected_params = selected_params
         st.success("Параметры модели сохранены!")
+        df_params = pd.DataFrame.from_dict(selected_params, orient='index', columns=['Значение'])
+        df_params.index.name = 'Параметр'
+        success_green = '#f2f2f2'
+
+        def format_value(val):
+            if isinstance(val, float):
+                return round(val, 4)
+            return val
+
+        def highlight_success_column(s):
+            return ['background-color: {}'.format(success_green) for _ in s]
+
+        styled_df = (
+            df_params.style
+            .apply(highlight_success_column, subset=['Значение'])
+            .format(format_value)
+            .set_properties(**{'text-align': 'center'})
+            .set_table_styles([
+                {'selector': 'th', 'props': [('text-align', 'center')]}
+            ])
+        )
+        st.dataframe(styled_df, use_container_width=True)
     else:
         st.info("Выберите параметры модели.")
 
 
-    if "selected_params" in st.session_state:
-        st.markdown("### Текущие параметры:")
-        st.json(st.session_state.selected_params)
+
+
+    # if "selected_params" in st.session_state:
+    #     st.markdown("### Текущие параметры:")
+    #     st.json(st.session_state.selected_params)
 
 
 
@@ -193,7 +227,7 @@ def detail_page():
     show_metrics(calc_metrics(connection(),
                             ticker,
                             'hour_shares_data',
-                             datetime.strftime(datetime.today() - timedelta(days=365),'%Y-%m-%d')
+                             datetime.strftime(datetime.today() - timedelta(days=400),'%Y-%m-%d')
                             ))
 
 

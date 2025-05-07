@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import pandas as pd
+import numpy as np
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine, TIMESTAMP
 from scripts.data_filling import fill_data
@@ -45,6 +45,7 @@ def show_metrics(metrics):
                 unsafe_allow_html=True
             )
 
+
 def calc_metrics(conn, ticker, table_name, threshold_date):
 
     data = pd.read_sql_query(f"""select *
@@ -53,9 +54,11 @@ def calc_metrics(conn, ticker, table_name, threshold_date):
                                 and time >= '{threshold_date}'
                             """, conn)
     full_data = fill_data(data)
+
     price_today = full_data['close'][full_data['time'] == max(full_data.time)].values[0]
     price_year_ago = full_data['close'][full_data['time'] == datetime.strftime(datetime.today() - timedelta(days=365), '%Y-%m-%d')].values[0]
     price_month_ago = full_data['close'][full_data['time'] == datetime.strftime(datetime.today() - timedelta(days=30), '%Y-%m-%d')].values[0]
+
 
     metrics = {
         'Текущая стоимость' : f"{price_today} руб.",
