@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import time
+
 from datetime import datetime, timedelta
 from scripts.actual_shares_list import shares_list
 from scripts.config import stock_info, model_info, model_params
@@ -7,6 +9,7 @@ from scripts.shares_fig import plot_price_chart
 from scripts.connection import connection
 from scripts.metrics import show_metrics, calc_metrics
 from scripts.data_filling import fill_data
+from scripts.model_train_pred import model_train_predict
 
 st.set_page_config(
 page_title="RL Trade Agent",
@@ -25,6 +28,12 @@ if "current_stock" not in st.session_state:
 def main_page():
     st.title("📈| RL Trade Agent")
     st.markdown("#### Параметры торговли")
+
+    stocks = None
+    capital = None
+    start_date, end_date = None, None
+    selected_model = None
+    selected_params = None
 
     if "selected_stocks" not in st.session_state:
         st.session_state.selected_stocks = []
@@ -75,7 +84,7 @@ def main_page():
         if not selected:
             st.error("Пожалуйста, выберите хотя бы одну акцию.")
         elif not selected_model:
-            st.error("Пожалуйста, выберите хотя модель.")
+            st.error("Пожалуйста, выберите модель.")
         elif start_date < min_start_date.date() or start_date > max_start_date.date():
             st.error(f"Дата начала должна быть в диапазоне с {min_start_date.strftime('%d.%m.%Y')} по {max_start_date.strftime('%d.%m.%Y')}")
         elif end_date < min_end_date.date() or end_date > max_end_date.date():
@@ -124,41 +133,44 @@ def main_page():
 
 # ------------------------------------------------------
     st.markdown("#### Параметры модели")
+    params = model_params[selected_model]
+
+    for key, param in params.items():
+        if key not in st.session_state:
+            st.session_state[key] = param.get("value", param.get("options", [None])[0])
 
     with st.form("model_params_form"):
-        params = model_params[selected_model]
-
         cols = st.columns(2)
         col_index = 0
 
         for key, param in params.items():
             with cols[col_index]:
                 if param["type"] == "number_input":
-                    st.session_state[key] = st.number_input(
+                    st.number_input(
                         param["label"],
                         min_value=param["min_value"],
                         max_value=param["max_value"],
-                        value=param["value"],
                         step=param["step"],
-                        format=param["format"],
-                        help=param['help']
+                        format=param.get("format"),
+                        help=param['help'],
+                        key=key
                     )
                 elif param["type"] == "slider":
-                    st.session_state[key] = st.slider(
+                    st.slider(
                         param["label"],
                         min_value=param["min_value"],
                         max_value=param["max_value"],
-                        value=param["value"],
                         step=param["step"],
-                        help=param['help']
-
+                        format=param.get("format"),
+                        help=param['help'],
+                        key=key
                     )
                 elif param["type"] == "selectbox":
-                    st.session_state[key] = st.selectbox(
+                    st.selectbox(
                         param["label"],
                         options=param["options"],
-                        help=param['help']
-
+                        help=param['help'],
+                        key=key
                     )
             col_index = (col_index + 1) % 2
 
@@ -170,31 +182,35 @@ def main_page():
         st.success("Параметры модели сохранены!")
         df_params = pd.DataFrame.from_dict(selected_params, orient='index', columns=['Значение'])
         df_params.index.name = 'Параметр'
-        success_green = '#f2f2f2'
-
-        def format_value(val):
-            if isinstance(val, float):
-                return round(val, 4)
-            return val
-
-        def highlight_success_column(s):
-            return ['background-color: {}'.format(success_green) for _ in s]
-
-        styled_df = (
-            df_params.style
-            .apply(highlight_success_column, subset=['Значение'])
-            .format(format_value)
-            .set_properties(**{'text-align': 'center'})
-            .set_table_styles([
-                {'selector': 'th', 'props': [('text-align', 'center')]}
-            ])
-        )
-        st.dataframe(styled_df, use_container_width=True)
+        st.dataframe(df_params, use_container_width=True)
     else:
-        st.info("Выберите параметры модели.")
+        if "selected_params" in st.session_state:
+            st.success("Параметры модели сохранены!")
+            df_params = pd.DataFrame.from_dict(st.session_state.selected_params, orient='index', columns=['Значение'])
+            df_params.index.name = 'Параметр'
+            st.dataframe(df_params, use_container_width=True)
+        else:
+            st.info("Выберите параметры модели.")
 
+    st.markdown("#### Торговля с агентом")
 
+    # # Заглушка для stocks, замените на вашу логику выбора акций
+    # if "stocks" not in st.session_state:
+    #     st.session_state.stocks = None  # Или список выбранных акций
 
+    # stocks = st.session_state.stocks
+
+    if st.button("🚀 Начать обучение", key="big_train_button"):
+        if stocks is None:
+            st.error('Пожалуйста, выберите хотя бы одну акцию.')
+        elif "selected_params" not in st.session_state:
+            st.error('Пожалуйста, подтвердите выбор параметров модели.')
+        else:
+            with st.spinner(f"Агент выбирает лучшую торговую стратегию, процесс запущен в {datetime.now().time().strftime('%H:%M:%S')}."):
+                st.warning('В среднем агенту требуется около 7 минут на подбор лучшей торговой стратегии, однако время ожидания может увеличиться в зависимости от выбранных параметров.')
+                model_train_predict(stocks, capital, start_date, end_date, selected_model, st.session_state.selected_params)
+
+            # Здесь вызов функции обучения
 
     # if "selected_params" in st.session_state:
     #     st.markdown("### Текущие параметры:")
