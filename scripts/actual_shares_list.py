@@ -19,7 +19,7 @@ def shares_list_for_user(conn, table_name, threshold_date):
             (
             SELECT DISTINCT ticker
             FROM {table_name}
-            WHERE time = '{datetime.strftime(datetime.today() - timedelta(days=2), '%Y-%m-%d')}'
+            WHERE time = '{datetime.strftime(datetime.today() - timedelta(days=1), '%Y-%m-%d')}'
             ),
 
         shares_rows as
