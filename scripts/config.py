@@ -158,7 +158,7 @@ Replay Buffer: TD3 использует буфер повторного восп
 model_params = {
 
     "A2C (Advantage Actor Critic)" : {
-        'total_timesteps' : {"label": "total_timesteps", "type": "number_input", "min_value": 20000, "max_value": 1000000, "value": 50000, "step": 10000, 'help':'Определяет общее количество шагов среды (environment steps), на которых будет обучаться агент.'},
+        'total_timesteps' : {"label": "total_timesteps", "type": "number_input", "min_value": 5000, "max_value": 1000000, "value": 50000, "step": 10000, 'help':'Определяет общее количество шагов среды (environment steps), на которых будет обучаться агент.'},
         'learning_rate' : {"label": "learning rate", "type": "number_input", "min_value": 0.0001, "max_value": 1.0, "value": 0.005, "step": 0.0001, "format": "%.4f", 'help':'Настраиваемый параметр алгоритма оптимизации, который определяет размер шага на каждой итерации, при движении к минимуму функции потерь.'},
         'ent_coef' :      {"label": "ent_coef", "type": "slider", "min_value": 0.01, "max_value": 1.0, "value": 0.01, "step": 0.01, "format": "%.2f", 'help':'Коэффициент энтропии, который используется при вычислении функции потерь. Он регулирует влияние энтропии на общий лосс, стимулируя исследование (exploration) агентом.'},
         'gae_lambda':     {"label": "gae_lambda", "type": "slider", "min_value": 0.01, "max_value": 1.0, "value": 0.95, "step": 0.01, "format": "%.2f", 'help':'Коэффициент, позволяющий найти компромисс между погрешностью и дисперсией для обобщенной оценки преимущества. Эквивалентно классическому преимуществу при значении 1.'},

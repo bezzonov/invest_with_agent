@@ -25,6 +25,8 @@ if "selected_stocks" not in st.session_state:
     st.session_state.selected_stocks = []
 if "current_stock" not in st.session_state:
     st.session_state.current_stock = None
+if "training_result" not in st.session_state:
+    st.session_state.training_result = None
 
 def main_page():
     st.title("📈| RL Trade Agent")
@@ -40,6 +42,8 @@ def main_page():
         st.session_state.selected_stocks = []
     if "selected_model" not in st.session_state:
         st.session_state.selected_model = None
+    if "training_result" not in st.session_state:
+        st.session_state.training_result = None
 
     # Используем временную переменную для выбора в форме
     with st.form("stock_form"):
@@ -209,8 +213,11 @@ def main_page():
         else:
             with st.spinner(f"Агент выбирает лучшую торговую стратегию, процесс запущен в {datetime.now().time().strftime('%H:%M:%S')}."):
                 st.info('В среднем агенту требуется около 7 минут на подбор лучшей торговой стратегии, однако время ожидания может увеличиться в зависимости от выбранных параметров.')
-                model_train_predict(stocks, capital, start_date, end_date, selected_model, st.session_state.selected_params)
-            # Здесь вызов функции обучения
+                try:
+                    result = model_train_predict(stocks, capital, start_date, end_date, selected_model, st.session_state.selected_params)
+                    st.session_state.training_result = result
+                except MemoryError:
+                    st.warnings('Что-то пошло не так, попробуйте снова.')
 
     # if "selected_params" in st.session_state:
     #     st.markdown("### Текущие параметры:")
