@@ -1,0 +1,15 @@
+version: "3"
+
+services:
+  rl_trade:
+    container_name: index_downloader
+    command: python3 scripts/index_downloader.py
+    restart: always
+    build:
+      context: "."
+      dockerfile: Dockerfile
+    volumes:
+      - index_downloader:/app/data
+
+volumes:
+  index_downloader:
