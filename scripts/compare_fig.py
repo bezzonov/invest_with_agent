@@ -1,20 +1,33 @@
 import streamlit as st
 import plotly.graph_objects as go
 import numpy as np
+import pandas as pd
+
+from scripts.connection import connection
+
 
 def plot_compare_chart(selected_model, df1, df2):
-    x = np.linspace(0, 10, 100)
-    y3 = np.sin(x) * 0.5
-    y4 = np.cos(x) * 0.5 + 1
+
+
+    indexes_info = pd.read_sql_query("select * from stock_market_indexes", connection())
+    indexes_info = indexes_info[(indexes_info['date'] >= min(df1['date'])) &
+                                (indexes_info['date'] <= max(df1['date']))]
+    start_index_row = indexes_info[indexes_info['date'] == min(df1['date'])]
 
     fig = go.Figure()
 
-    fig.add_trace(go.Scatter(x=df1['date'], y=df1['account_value'], name=f'{selected_model.upper()}', visible=True, line=dict(color='red')))
-    fig.add_trace(go.Scatter(x=df1['date'], y=df2['Mean Var Optimization'], name='MVO', visible=True, line=dict(color='blue'),
+    fig.add_trace(go.Scatter(x=df1['date'], y=[round(i) for i in df1['account_value']], name=f'{selected_model.upper()}', visible=True, line=dict(color='red')))
+    fig.add_trace(go.Scatter(x=df1['date'], y=[round(i) for i in df2['Mean Var Optimization']], name='MVO', visible=True, line=dict(color='blue'),
                                  fill='tonexty',
                                  fillcolor='rgba(61, 237, 77, 0.15)'))
-    fig.add_trace(go.Scatter(x=x, y=y3, name='Линия 3', visible=False, line=dict(color='green')))
-    fig.add_trace(go.Scatter(x=x, y=y4, name='Линия 4', visible=False, line=dict(color='orange')))
+    fig.add_trace(go.Scatter(x=indexes_info['date'], y=[round(100 * (i - df1['account_value'].values[0]) / df1['account_value'].values[0], 1) for i in df1['account_value']], name=f'{selected_model.upper()}', visible=False, line=dict(color='red')))
+    fig.add_trace(go.Scatter(x=indexes_info['date'], y=[round(100 * (i - start_index_row['imoex'].values[0]) / start_index_row['imoex'].values[0], 1)  for i in indexes_info['imoex']], name='IMOEX', visible=False, line=dict(color='blue')))
+    fig.add_trace(go.Scatter(x=indexes_info['date'], y=[round(100 * (i - start_index_row['rtsi'].values[0]) / start_index_row['rtsi'].values[0], 1) for i in indexes_info['rtsi']], name='RTSI', visible=False, line=dict(color='green')))
+    fig.add_trace(go.Scatter(x=indexes_info['date'], y=[round(100 * (i - start_index_row['moexbc'].values[0]) / start_index_row['moexbc'].values[0], 1) for i in indexes_info['moexbc']], name='MOEXBC', visible=False, line=dict(color='orange')))
+    fig.add_trace(go.Scatter(x=indexes_info['date'], y=[round(100 * (i - start_index_row['moexog'].values[0]) / start_index_row['moexog'].values[0], 1) for i in indexes_info['moexog']], name='MOEXOG', visible=False, line=dict(color='purple')))
+    fig.add_trace(go.Scatter(x=indexes_info['date'], y=[round(100 * (i - start_index_row['moexeu'].values[0]) / start_index_row['moexeu'].values[0], 1) for i in indexes_info['moexeu']], name='MOEXEU', visible=False, line=dict(color='magenta')))
+    fig.add_trace(go.Scatter(x=indexes_info['date'], y=[round(100 * (i - start_index_row['moexfn'].values[0]) / start_index_row['moexfn'].values[0], 1) for i in indexes_info['moexfn']], name='MOEXFN', visible=False, line=dict(color='cyan')))
+
 
 
     fig.update_layout(
@@ -27,7 +40,7 @@ def plot_compare_chart(selected_model, df1, df2):
                         label="Стратегии",
                         method="update",
                         args=[
-                            {"visible": [True, True, False, False]},
+                            {"visible": [True, True, False, False, False, False, False, False, False]},
                             {"yaxis": {"title": "Баланс портфеля (руб.)"}}
                         ],
                     ),
@@ -35,7 +48,7 @@ def plot_compare_chart(selected_model, df1, df2):
                         label="Индикаторы",
                         method="update",
                         args=[
-                            {"visible": [False, False, True, True]},
+                            {"visible": [False, False, True, True, True, True, True, True, True]},
                             {"yaxis": {"title": "%"}}
                         ],
                     ),

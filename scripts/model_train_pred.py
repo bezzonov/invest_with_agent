@@ -31,6 +31,7 @@ warnings.filterwarnings('ignore')
 import numpy as np
 import pandas as pd
 pd.set_option('display.max_columns', None)
+from scripts.config import tooltip_text
 
 table_name = 'hour_shares_data'
 threshold_date = '2018-01-01'
@@ -128,7 +129,7 @@ def extract_trade_data(conn, selected, start_date, end_date, table_name):
     data = pd.read_sql_query(f"""
                             SELECT *
                             FROM {table_name}
-                            WHERE time >= '{start_date}'
+                            WHERE time >= '{(start_date  - timedelta(days=10)).strftime('%Y-%m-%d')}'
                             AND time <='{end_date}'
                             AND ticker in {selected}
                             """, conn)
@@ -180,8 +181,8 @@ def mvo_strategy(processed_train, processed_trade, capital):
 
     def StockReturnsComputing(StockPrice, Rows, Columns):
         StockReturn = np.zeros([Rows-1, Columns])
-        for j in range(Columns):        # j: Assets
-            for i in range(Rows-1):     # i: Daily Prices
+        for j in range(Columns):
+            for i in range(Rows-1):
                 StockReturn[i,j]=((StockPrice[i+1, j]-StockPrice[i,j])/StockPrice[i,j])* 100
         return StockReturn
 
@@ -231,7 +232,11 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
                         user_defined_feature = False)
         processed_train = fe.preprocess_data(full_train_data)
         processed_train.index= processed_train["date"].factorize()[0]
-        st.write(f"""✅ Добавлены торговые индикаторы в качестве дополнительных параметров, всего добавлено {len(INDICATORS)} индикаторов.""")
+        st.markdown(f'''
+        <span title="{tooltip_text}" style="cursor: help;">
+        ✅ Добавлены торговые индикаторы в качестве дополнительных параметров, всего добавлено {len(INDICATORS)} индикаторов. ℹ️
+        </span>
+        ''', unsafe_allow_html=True)
         env_train = create_train_env(processed_train, capital)
         st.write(f"""✅ Подготовлено тренировочное окружение.""")
         selected_model = selected_model.split()[0].lower()
@@ -240,6 +245,7 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
     # ---------------------------------------------------------------------------------------------------
         trade_data = extract_trade_data(connection(), selected_shares, start_date, end_date, table_name)
         full_trade_data = fill_data(trade_data)
+        full_trade_data = full_trade_data[full_trade_data['time'] >= pd.to_datetime(start_date)]
         full_trade_data.rename(columns={'time': 'date', 'ticker': 'tic'}, inplace=True)
         fe = FeatureEngineer(use_technical_indicator=True,
                         tech_indicator_list = INDICATORS,
@@ -262,24 +268,30 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
     cp3 = round(mvo['Mean Var Optimization'].tolist()[-1])
 
     if cp2 >= cp1 and cp2 >= cp3:
-        st.markdown(f"### :green[{cp2}₽  ↑ {cp2-cp1}₽  (+{round(100*(cp2-cp3)/cp3, 1)}%)]",
+        st.markdown(f"## :green[{cp2}₽  ↑ {cp2-cp1}₽  (+{round(100*(cp2-cp3)/cp3, 1)}%)]",
                     help='Первое значение - баланс (руб.) в результате торговой стратегии, выбранной агентом. Второе значение - на сколько в рублях стратегия агента отличается от выбранного первоначального капитала. Третье значение - относительная разница эффективности стратегии агента от стратегии MVO.')
     elif cp2 >= cp1 and cp2 < cp3:
-        st.markdown(f"### :green[{cp2}₽   ↑ {cp2-cp1}₽]  :red[({round(100*(cp2-cp3)/cp3, 1)}%)]",
+        st.markdown(f"## :green[{cp2}₽   ↑ {cp2-cp1}₽]  :red[({round(100*(cp2-cp3)/cp3, 1)}%)]",
                     help='Первое значение - баланс (руб.) в результате торговой стратегии, выбранной агентом. Второе значение - на сколько в рублях стратегия агента отличается от выбранного первоначального капитала. Третье значение - относительная разница эффективности стратегии агента от стратегии MVO.')
     elif cp2 < cp1 and cp2 >= cp3:
-            st.markdown(f"### :red[{cp2}₽   ↓ {cp2-cp1}₽]  :green[(+{round(100*(cp2-cp3)/cp3, 1)}%)]",
+            st.markdown(f"## :red[{cp2}₽   ↓ {cp2-cp1}₽]  :green[(+{round(100*(cp2-cp3)/cp3, 1)}%)]",
                         help='Первое значение - баланс (руб.) в результате торговой стратегии, выбранной агентом. Второе значение - на сколько в рублях стратегия агента отличается от выбранного первоначального капитала. Третье значение - относительная разница эффективности стратегии агента от стратегии MVO.')
     elif cp2 < cp1 and cp2 < cp3:
-        st.markdown(f"### :red[{cp2}₽   ↓ {cp2-cp1}₽  ({round(100*(cp2-cp3)/cp3, 1)}%)]",
+        st.markdown(f"## :red[{cp2}₽   ↓ {cp2-cp1}₽  ({round(100*(cp2-cp3)/cp3, 1)}%)]",
                     help='Первое значение - баланс (руб.) в результате торговой стратегии, выбранной агентом. Второе значение - на сколько в рублях стратегия агента отличается от выбранного первоначального капитала. Третье значение - относительная разница эффективности стратегии агента от стратегии MVO.')
     # st.markdown(f"## {round(df_account_value['account_value'].tolist()[-1])}")
     # st.write('баланс (руб.) в результате торговой стратегии, выбранной агентом.')
 
     # st.write(mvo_strategy(processed_train, processed_trade, capital))
     # st.write(df_account_value)
-
-    st.info('Mean-Variance Optimization (MVO) - это одна из самых мощных и широко используемых методик в современной инвестиционной теории, лежащая в основе эффективного управления портфелем. Она позволяет инвесторам оптимально распределять активы, чтобы максимизировать ожидаемую доходность при заданном уровне риска или минимизировать риск при заданной доходности.')
+    with st.expander("Подсказки"):
+        st.info('Mean-Variance Optimization (MVO) - это одна из самых мощных и широко используемых методик в современной инвестиционной теории, лежащая в основе эффективного управления портфелем. Она позволяет инвесторам оптимально распределять активы, чтобы максимизировать ожидаемую доходность при заданном уровне риска или минимизировать риск при заданной доходности.')
+        st.info('IMOEX - Индекс Московской биржи (MOEX Russia Index), основной широкий индекс российского рынка, включающий наиболее ликвидные акции.')
+        st.info('RTSI - Индекс РТС (Russian Trading System), долларовый индекс российских акций.')
+        st.info('MOEXBC - Индекс голубых фишек (Blue Chip Index), включает 15 самых ликвидных и крупных компаний России.')
+        st.info('MOEXOG - Отраслевой индекс нефти и газа, отражает динамику акций крупнейших нефтегазовых компаний.')
+        st.info('MOEXEU - Отраслевой индекс электроэнергетики, включает акции компаний электроэнергетического сектора.')
+        st.info('MOEXFN - Отраслевой индекс финансового сектора, включает акции банков, страховых и финансовых компаний.')
 
     st.plotly_chart(plot_compare_chart(selected_model,
                                        df_account_value,
