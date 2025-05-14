@@ -199,12 +199,6 @@ def main_page():
 
     st.markdown("#### Торговля с агентом")
 
-    # # Заглушка для stocks, замените на вашу логику выбора акций
-    # if "stocks" not in st.session_state:
-    #     st.session_state.stocks = None  # Или список выбранных акций
-
-    # stocks = st.session_state.stocks
-
     if st.button("🚀 Начать обучение", key="big_train_button"):
         if stocks is None:
             st.error('Пожалуйста, выберите хотя бы одну акцию.')
@@ -218,6 +212,17 @@ def main_page():
                     st.session_state.training_result = result
                 except MemoryError:
                     st.warnings('Что-то пошло не так, попробуйте снова.')
+    else:
+        st.info("Нажмите на кнопку, чтобы начать обучение.")
+
+    st.divider()
+
+    c1, c2, c3 = st.columns(3)
+    c1.markdown("📱 [@bezzonov](https://t.me/bezzonov)")
+    c2.markdown("📞 +7 (967) 020-77-11")
+    c3.markdown("✉️ [bezzonovs@yandex.ru](mailto:bezzonovs@yandex.ru)")
+
+
 
     # if "selected_params" in st.session_state:
     #     st.markdown("### Текущие параметры:")

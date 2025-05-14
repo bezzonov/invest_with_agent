@@ -18,6 +18,7 @@ import streamlit as st
 from scripts.connection import connection
 from scripts.data_filling import fill_data
 from scripts.compare_fig import plot_compare_chart
+from scripts.trades_analysis import trades_history
 
 import sys
 sys.path.append("../FinRL-Library")
@@ -263,24 +264,38 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
         st.success(f"""Агент окончательно определился с торговой стратегией.""")
 
     mvo = mvo_strategy(processed_train, processed_trade, capital)
+    indexes_info = pd.read_sql_query("select * from stock_market_indexes", connection())
+    indexes_info = indexes_info[(indexes_info['date'] >= min(df_account_value['date'])) &
+                                (indexes_info['date'] <= max(df_account_value['date']))]
+    imoex_start = indexes_info['imoex'][indexes_info['date'] == min(df_account_value['date'])].values[0]
+    imoex_end = indexes_info['imoex'][indexes_info['date'] == max(df_account_value['date'])].values[0]
+
     cp1 = capital
     cp2 = round(df_account_value['account_value'].tolist()[-1])
     cp3 = round(mvo['Mean Var Optimization'].tolist()[-1])
+    cp4 = 100 * (round(df_account_value['account_value'].tolist()[-1]) - capital) / capital
+    cp5 = 100 * (imoex_end - imoex_start) / imoex_start
 
-    if cp2 >= cp1 and cp2 >= cp3:
-        st.markdown(f"## :green[{cp2}₽  ↑ {cp2-cp1}₽  (+{round(100*(cp2-cp3)/cp3, 1)}%)]",
-                    help='Первое значение - баланс (руб.) в результате торговой стратегии, выбранной агентом. Второе значение - на сколько в рублях стратегия агента отличается от выбранного первоначального капитала. Третье значение - относительная разница эффективности стратегии агента от стратегии MVO.')
-    elif cp2 >= cp1 and cp2 < cp3:
-        st.markdown(f"## :green[{cp2}₽   ↑ {cp2-cp1}₽]  :red[({round(100*(cp2-cp3)/cp3, 1)}%)]",
-                    help='Первое значение - баланс (руб.) в результате торговой стратегии, выбранной агентом. Второе значение - на сколько в рублях стратегия агента отличается от выбранного первоначального капитала. Третье значение - относительная разница эффективности стратегии агента от стратегии MVO.')
-    elif cp2 < cp1 and cp2 >= cp3:
-            st.markdown(f"## :red[{cp2}₽   ↓ {cp2-cp1}₽]  :green[(+{round(100*(cp2-cp3)/cp3, 1)}%)]",
-                        help='Первое значение - баланс (руб.) в результате торговой стратегии, выбранной агентом. Второе значение - на сколько в рублях стратегия агента отличается от выбранного первоначального капитала. Третье значение - относительная разница эффективности стратегии агента от стратегии MVO.')
-    elif cp2 < cp1 and cp2 < cp3:
-        st.markdown(f"## :red[{cp2}₽   ↓ {cp2-cp1}₽  ({round(100*(cp2-cp3)/cp3, 1)}%)]",
-                    help='Первое значение - баланс (руб.) в результате торговой стратегии, выбранной агентом. Второе значение - на сколько в рублях стратегия агента отличается от выбранного первоначального капитала. Третье значение - относительная разница эффективности стратегии агента от стратегии MVO.')
+    # if cp2 >= cp1 and cp2 >= cp3:
+    #     st.markdown(f"## :green[{cp2}₽  ↑ {cp2-cp1}₽  (+{round(100*(cp2-cp3)/cp3, 1)}%)]",
+    #                 help='Первое значение - баланс (руб.) в результате торговой стратегии, выбранной агентом. Второе значение - на сколько в рублях стратегия агента отличается от выбранного первоначального капитала. Третье значение - относительная разница эффективности стратегии агента от стратегии MVO.')
+    # elif cp2 >= cp1 and cp2 < cp3:
+    #     st.markdown(f"## :green[{cp2}₽   ↑ {cp2-cp1}₽]  :red[({round(100*(cp2-cp3)/cp3, 1)}%)]",
+    #                 help='Первое значение - баланс (руб.) в результате торговой стратегии, выбранной агентом. Второе значение - на сколько в рублях стратегия агента отличается от выбранного первоначального капитала. Третье значение - относительная разница эффективности стратегии агента от стратегии MVO.')
+    # elif cp2 < cp1 and cp2 >= cp3:
+    #         st.markdown(f"## :red[{cp2}₽   ↓ {cp2-cp1}₽]  :green[(+{round(100*(cp2-cp3)/cp3, 1)}%)]",
+    #                     help='Первое значение - баланс (руб.) в результате торговой стратегии, выбранной агентом. Второе значение - на сколько в рублях стратегия агента отличается от выбранного первоначального капитала. Третье значение - относительная разница эффективности стратегии агента от стратегии MVO.')
+    # elif cp2 < cp1 and cp2 < cp3:
+    #     st.markdown(f"## :red[{cp2}₽   ↓ {cp2-cp1}₽  ({round(100*(cp2-cp3)/cp3, 1)}%)]",
+    #                 help='Первое значение - баланс (руб.) в результате торговой стратегии, выбранной агентом. Второе значение - на сколько в рублях стратегия агента отличается от выбранного первоначального капитала. Третье значение - относительная разница эффективности стратегии агента от стратегии MVO.')
     # st.markdown(f"## {round(df_account_value['account_value'].tolist()[-1])}")
     # st.write('баланс (руб.) в результате торговой стратегии, выбранной агентом.')
+    m1, m2 = st.columns(2)
+    m3, m4 = st.columns(2)
+    m1.metric(label=f"Баланс стратегии {selected_model.upper()}", value=f"{cp2} ₽", delta=f"{cp2-cp1} ₽", border=False, help='Баланс портфеля (руб.) в результате торговой стратегии, выбранной агентом.')
+    m2.metric(label="Баланс стратегии MVO", value=f"{cp3} ₽", delta=f"{cp3-cp1} ₽", border=False, help='Баланс портфеля (руб.) в результате торговой стратегии MVO.')
+    m3.metric(label=f"Разница {selected_model.upper()} & MVO", value=f"{round(100*(cp2-cp3)/cp3,1)} %", border=False, help='На сколько % стратегия агента выгодней стратегии MVO.')
+    m4.metric(label=f"Разница {selected_model.upper()} & IMOEX", value=f"{round(cp4-cp5, 1)} %", border=False, help='На сколько % стратегия агента эффективней индекса MOEX.')
 
     # st.write(mvo_strategy(processed_train, processed_trade, capital))
     # st.write(df_account_value)
@@ -301,7 +316,22 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
         st.write(f'Торговая стратегия агента {selected_model.upper()} окалась более эффективной по сравнению со стратегией MVO на {cp2-cp3} руб. ({round(100*(cp2-cp3)/cp3, 1)}%)')
     elif cp2 <= cp3:
             st.write(f'Торговая стратегия агента {selected_model.upper()} окалась менее эффективной по сравнению со стратегией MVO на {cp3-cp2} руб. ({round(100*(cp3-cp2)/cp3, 1)}%)')
+    if cp4 >= cp5:
+        st.write(f'Выбранные параметры торговли и параметры модели помогли агенту сформировать стратегию, которая "обогнала рынок" на {round(cp4-cp5,1)}%.')
+    elif cp4 <= cp5:
+        st.write(f'Выбранных параметров торговли и параметров модели оказалось недостаточно, чтобы агент сумел сформировать стратегию "обгоняющую рынок". Стратегия агента оказалась менее прибыльной по сравнению с рыночным ориентиром на {round(cp5-cp4,1)}%.')
 
+    trades = trades_history(processed_trade, df_account_value, df_actions)
+    # st.dataframe(trades)
 
-
-    # return trained_model
+    st.markdown("#### Состав портфеля")
+    rows = []
+    portfolio_last = trades['portfolio'][trades['date'] == max(df_account_value['date'])].values[0]
+    free_assets_last = trades['free_assets'][trades['date'] == max(df_account_value['date'])].values[0]
+    for stock, values in portfolio_last.items():
+        qty, cost = sorted(values)
+        rows.append({"Акция": stock, "Количество (шт.)": qty, "Стоимость (руб.)": cost})
+    rows.append({"Акция": "₽", "Количество (шт.)": free_assets_last, "Стоимость (руб.)": free_assets_last})
+    portfolio_structure = pd.DataFrame(rows).sort_values(by='Стоимость (руб.)', ascending=False)
+    st.dataframe(portfolio_structure, hide_index=True)
+    return

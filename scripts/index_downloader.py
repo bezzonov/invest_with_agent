@@ -22,7 +22,7 @@ def fetch_index_close_data(index, date_from):
 
     all_data = []
     start = 0
-    limit = 100  
+    limit = 100
 
     while True:
         params = {
@@ -92,6 +92,18 @@ async def periodic_task(interval_hours=3):
 
             if df_index_full_today.drop(columns=['date']).isnull().all(axis=1).iloc[0]:
                 print(f"[{datetime.now()}] Нет данных за сегодня по всем индексам, пропуск обновления.")
+                yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+                yesterday_data = pd.read_sql_query(f"SELECT * FROM stock_market_indexes WHERE date = '{yesterday}'", connection())
+                yesterday_data['date'] = datetime.today().date()
+                yesterday_data.to_sql(
+                        'stock_market_indexes',
+                        con=engine,
+                        if_exists='append',
+                        index=False,
+                        dtype={'date': TIMESTAMP}
+                    )
+                print(f"[{datetime.now()}] Добавлены данные за вчера, обновим их, как появятся за сегодня.")
+
             else:
                 query = f"SELECT date FROM stock_market_indexes WHERE date = '{today_str}'"
                 existing = pd.read_sql(query, engine)
