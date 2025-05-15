@@ -8,3 +8,4 @@ Pillow~=10.1.0
 pytz==2023.3.post1
 # tinkoff-investments == 0.2.0b110
 pandas == 2.2.3
+requests==2.32.3
