@@ -5,7 +5,9 @@ from datetime import datetime, timedelta
 from sqlalchemy import create_engine, TIMESTAMP
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text
+import logging
 
+logger = logging.getLogger(__name__)
 
 def connection():
     db_params = {
@@ -85,13 +87,13 @@ async def periodic_task(interval_hours=3):
             for ind in indexes:
                 df_index_today = get_one_index_info(ind, [today_str])
                 if df_index_today.empty:
-                    print(f"[{datetime.now()}] Нет данных по индексу {ind} за {today_str}")
+                    logger.info(f"[{datetime.now()}] Нет данных по индексу {ind} за {today_str}")
                     continue
                 df_index_today['date'] = pd.to_datetime(df_index_today['date'])
                 df_index_full_today = df_index_full_today.merge(df_index_today, how='left', on='date')
 
             if df_index_full_today.drop(columns=['date']).isnull().all(axis=1).iloc[0]:
-                print(f"[{datetime.now()}] Нет данных за сегодня по всем индексам, пропуск обновления.")
+                logger.info(f"[{datetime.now()}] Нет данных за сегодня по всем индексам, пропуск обновления.")
                 yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
                 yesterday_data = pd.read_sql_query(f"SELECT * FROM stock_market_indexes WHERE date = '{yesterday}'", connection())
                 yesterday_data['date'] = datetime.today().date()
@@ -102,7 +104,7 @@ async def periodic_task(interval_hours=3):
                         index=False,
                         dtype={'date': TIMESTAMP}
                     )
-                print(f"[{datetime.now()}] Добавлены данные за вчера, обновим их, как появятся за сегодня.")
+                logger.info(f"[{datetime.now()}] Добавлены данные за вчера, обновим их, как появятся за сегодня.")
 
             else:
                 query = f"SELECT date FROM stock_market_indexes WHERE date = '{today_str}'"
@@ -111,7 +113,7 @@ async def periodic_task(interval_hours=3):
                 if not existing.empty:
                     with engine.begin() as conn:
                         conn.execute(text(f"DELETE FROM stock_market_indexes WHERE date = DATE '{today_str}'"))
-                    print(f"[{datetime.now()}] Удалена старая запись за {today_str}")
+                    logger.info(f"[{datetime.now()}] Удалена старая запись за {today_str}")
 
                 df_index_full_today.to_sql(
                     'stock_market_indexes',
@@ -120,12 +122,12 @@ async def periodic_task(interval_hours=3):
                     index=False,
                     dtype={'date': TIMESTAMP}
                 )
-                print(f"[{datetime.now()}] Данные за {today_str} обновлены в БД.")
+                logger.info(f"[{datetime.now()}] Данные за {today_str} обновлены в БД.")
 
         except SQLAlchemyError as e:
-            print(f"[{datetime.now()}] Ошибка работы с БД: {e}")
+            logger.info(f"[{datetime.now()}] Ошибка работы с БД: {e}")
         except Exception as e:
-            print(f"[{datetime.now()}] Ошибка при обновлении данных: {e}")
+            logger.info(f"[{datetime.now()}] Ошибка при обновлении данных: {e}")
 
         await asyncio.sleep(interval_hours * 3600)
 
