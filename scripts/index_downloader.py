@@ -88,18 +88,24 @@ def get_one_index_info(index, dates_from):
 
 indexes = ["IMOEX", "RTSI", "MOEXBC", "MOEXOG", "MOEXEU", "MOEXFN"]
 dates_from = get_100_days()
-print('Получены временные отрезки')
+print('✅ Получены временные отрезки')
 df_index_full = pd.DataFrame(pd.date_range(start='2017-06-01', end=pd.Timestamp.today()).tolist(), columns=['date'])
 
 
 for ind in indexes:
     df_index = get_one_index_info(ind, dates_from)
     df_index_full = df_index_full.merge(df_index, how='left', on='date')
-    print(f'Получены данные по индексу {ind}')
+    print(f'✅ Получены данные по индексу {ind}')
 
 
 df_index_full = df_index_full.fillna(method='ffill')
-print(f'Заполнены пропуски')
+print(f'✅ Заполнены пропуски')
+
+try:
+    df_index_full.to_sql('stock_market_indexes', con=connection(), if_exists='replace', index=True, dtype={ 'date': TIMESTAMP})
+    print('✅ Данные загружены в БД')
+except:
+    print('❌ Проблема с загрузкой в БД')
 
 
 # def fetch_index_close_data(index, date_from):
