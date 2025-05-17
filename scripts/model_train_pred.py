@@ -12,6 +12,7 @@ from sqlalchemy import create_engine, TIMESTAMP, JSON
 from pprint import pprint
 from babel.dates import format_date
 from pypfopt.efficient_frontier import EfficientFrontier
+from st_aggrid import AgGrid, GridOptionsBuilder
 
 
 import streamlit as st
@@ -324,14 +325,48 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
     trades = trades_history(processed_trade, df_account_value, df_actions)
     # st.dataframe(trades)
 
-    st.markdown("#### Состав портфеля")
-    rows = []
+    st.markdown("#### Анализ стратегии")
+    rows_1 = []
     portfolio_last = trades['portfolio'][trades['date'] == max(df_account_value['date'])].values[0]
     free_assets_last = trades['free_assets'][trades['date'] == max(df_account_value['date'])].values[0]
     for stock, values in portfolio_last.items():
         qty, cost = sorted(values)
-        rows.append({"Акция": stock, "Количество (шт.)": qty, "Стоимость (руб.)": cost})
-    rows.append({"Акция": "₽", "Количество (шт.)": free_assets_last, "Стоимость (руб.)": free_assets_last})
-    portfolio_structure = pd.DataFrame(rows).sort_values(by='Стоимость (руб.)', ascending=False)
+        rows_1.append({"Акция": stock, "Количество (шт.)": qty, "Стоимость (руб.)": round(cost)})
+    rows_1.append({"Акция": "₽", "Количество (шт.)": free_assets_last, "Стоимость (руб.)": free_assets_last})
+    portfolio_structure = pd.DataFrame(rows_1).sort_values(by='Стоимость (руб.)', ascending=False)
     st.dataframe(portfolio_structure, hide_index=True)
+
+
+    gb = GridOptionsBuilder.from_dataframe(trades)
+
+    # Включаем группировку по "Дата" и "Действие"
+    gb.configure_column("Дата", rowGroup=True, hide=True)
+    gb.configure_column("Действие", rowGroup=True, hide=True)
+
+    # JS код для подсветки строк по значению в колонке "Действие"
+    cellsytle_jscode = """
+    function(params) {
+        if (params.data && params.data['Действие'] === 'Покупка') {
+            return {'backgroundColor': '#d4f4dd'};
+        } else if (params.data && params.data['Действие'] === 'Продажа') {
+            return {'backgroundColor': '#f4d4d4'};
+        }
+        return null;
+    }
+    """
+
+    # Применяем подсветку к нужным колонкам
+    for col in ["Акция", "Количество", "Стоимость", "Баланс портфеля"]:
+        gb.configure_column(col, cellStyle=cellsytle_jscode)
+
+    gridOptions = gb.build()
+
+    # Отображаем таблицу с включенной группировкой и подсветкой
+    AgGrid(
+        trades,
+        gridOptions=gridOptions,
+        enable_enterprise_modules=True,  # Нужно для группировки
+        fit_columns_on_grid_load=True,
+        height=400,
+    )
     return
