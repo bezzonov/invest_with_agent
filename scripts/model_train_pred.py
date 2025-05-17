@@ -38,39 +38,6 @@ from scripts.config import tooltip_text
 table_name = 'hour_shares_data'
 threshold_date = '2018-01-01'
 
-# # A2C
-# model_name_a2c = 'a2c'
-# model_kwargs_a2c = {'learning_rate':0.05, 'ent_coef': 0.01, 'gae_lambda':0.95,
-#                     'gamma':0.98, 'max_grad_norm':0.49, 'n_steps':4, 'normalize_advantage':True}
-# policy_kwargs_a2c = {'optimizer_kwargs': {'alpha': 0.90, 'eps': 1e-04, 'weight_decay': 0}}
-
-# # DDPG
-# model_name_ddpg = 'ddpg'
-# model_kwargs_ddpg= {'batch_size':128, 'buffer_size':50000, 'gamma':0.99, 'gradient_steps':2,
-#                     'learning_rate':0.01, 'learning_starts':500, 'tau':0.003, 'optimize_memory_usage': False}
-# policy_kwargs_ddpg={'n_critics': 1}
-
-# # PPO
-# model_name_ppo = 'ppo'
-# model_kwargs_ppo = {'batch_size':64, 'ent_coef':0.02, 'gae_lambda':0.95, 'gamma':0.99,
-#                     'learning_rate':0.003, 'max_grad_norm':0.5, 'n_epochs':10, 'n_steps':2048,
-#                     'normalize_advantage':True, 'sde_sample_freq':-1, 'vf_coef':0.5}
-# policy_kwargs_ppo={}
-
-# # TD3
-# model_name_td3 = 'td3'
-# model_kwargs_td3 = {'batch_size':100, 'buffer_size':50000, 'gamma':0.99, 'learning_rate':0.001,
-#                     'learning_starts':100, 'optimize_memory_usage':True, 'tau':0.005 }
-# policy_kwargs_td3={}
-
-# # SAC
-# model_name_sac = 'sac'
-# model_kwargs_sac = {"batch_size": 128, "buffer_size": 100000, 'gamma':0.99,
-#                     'gradient_steps':2, "learning_rate": 0.0001, "learning_starts": 100,
-#                     'optimize_memory_usage':False, "ent_coef": "auto_0.1", 'tau':0.005,
-#                     'target_entropy':-20, 'sde_sample_freq':-1}
-# policy_kwargs_sac = {'use_sde': False}
-
 def extract_train_data(conn, selected, start_date, table_name, threshold_date):
     data = pd.read_sql_query(f"""
                             SELECT *
@@ -277,20 +244,6 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
     cp4 = 100 * (round(df_account_value['account_value'].tolist()[-1]) - capital) / capital
     cp5 = 100 * (imoex_end - imoex_start) / imoex_start
 
-    # if cp2 >= cp1 and cp2 >= cp3:
-    #     st.markdown(f"## :green[{cp2}₽  ↑ {cp2-cp1}₽  (+{round(100*(cp2-cp3)/cp3, 1)}%)]",
-    #                 help='Первое значение - баланс (руб.) в результате торговой стратегии, выбранной агентом. Второе значение - на сколько в рублях стратегия агента отличается от выбранного первоначального капитала. Третье значение - относительная разница эффективности стратегии агента от стратегии MVO.')
-    # elif cp2 >= cp1 and cp2 < cp3:
-    #     st.markdown(f"## :green[{cp2}₽   ↑ {cp2-cp1}₽]  :red[({round(100*(cp2-cp3)/cp3, 1)}%)]",
-    #                 help='Первое значение - баланс (руб.) в результате торговой стратегии, выбранной агентом. Второе значение - на сколько в рублях стратегия агента отличается от выбранного первоначального капитала. Третье значение - относительная разница эффективности стратегии агента от стратегии MVO.')
-    # elif cp2 < cp1 and cp2 >= cp3:
-    #         st.markdown(f"## :red[{cp2}₽   ↓ {cp2-cp1}₽]  :green[(+{round(100*(cp2-cp3)/cp3, 1)}%)]",
-    #                     help='Первое значение - баланс (руб.) в результате торговой стратегии, выбранной агентом. Второе значение - на сколько в рублях стратегия агента отличается от выбранного первоначального капитала. Третье значение - относительная разница эффективности стратегии агента от стратегии MVO.')
-    # elif cp2 < cp1 and cp2 < cp3:
-    #     st.markdown(f"## :red[{cp2}₽   ↓ {cp2-cp1}₽  ({round(100*(cp2-cp3)/cp3, 1)}%)]",
-    #                 help='Первое значение - баланс (руб.) в результате торговой стратегии, выбранной агентом. Второе значение - на сколько в рублях стратегия агента отличается от выбранного первоначального капитала. Третье значение - относительная разница эффективности стратегии агента от стратегии MVO.')
-    # st.markdown(f"## {round(df_account_value['account_value'].tolist()[-1])}")
-    # st.write('баланс (руб.) в результате торговой стратегии, выбранной агентом.')
     m1, m2 = st.columns(2)
     m3, m4 = st.columns(2)
     m1.metric(label=f"Баланс стратегии {selected_model.upper()}", value=f"{cp2} ₽", delta=f"{cp2-cp1} ₽", border=False, help='Баланс портфеля (руб.) в результате торговой стратегии, выбранной агентом.')
@@ -326,47 +279,61 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
     # st.dataframe(trades)
 
     st.markdown("#### Анализ стратегии")
+
     rows_1 = []
     portfolio_last = trades['portfolio'][trades['date'] == max(df_account_value['date'])].values[0]
     free_assets_last = trades['free_assets'][trades['date'] == max(df_account_value['date'])].values[0]
     for stock, values in portfolio_last.items():
         qty, cost = sorted(values)
         rows_1.append({"Акция": stock, "Количество (шт.)": qty, "Стоимость (руб.)": round(cost)})
-    rows_1.append({"Акция": "₽", "Количество (шт.)": free_assets_last, "Стоимость (руб.)": free_assets_last})
     portfolio_structure = pd.DataFrame(rows_1).sort_values(by='Стоимость (руб.)', ascending=False)
+    additional_rows = pd.DataFrame([
+        {"Акция": "₽", "Количество (шт.)": '', "Стоимость (руб.)": free_assets_last},
+        {"Акция": "Итого", "Количество (шт.)": '', "Стоимость (руб.)": round(trades['account_value'][trades['date'] == max(df_account_value['date'])].values[0])}
+    ])
+    portfolio_structure = pd.concat([portfolio_structure, additional_rows], ignore_index=True)
     st.dataframe(portfolio_structure, hide_index=True)
 
+    with st.expander("Стратегия агента", expanded=False):
+        operations = []
+        for _, row in trades.iterrows():
+            date = row["date"]
+            actions = row["actions"]
+            account_val = row['account_value']
+            if pd.isna(actions):
+                continue
+            for ticker, (qty, cost) in actions.items():
+                operations.append({
+                    "Дата": date.date(),
+                    "Действие": "Покупка" if qty > 0 else "Продажа",
+                    "Акция": ticker,
+                    "Количество": abs(qty),
+                    "Стоимость": abs(round(cost)),
+                    "Баланс портфеля": account_val
+                })
+        operations_df = pd.DataFrame(operations).sort_values(by=['Дата', 'Действие', 'Стоимость'], ascending=[True, True, False])
+        def highlight_action(row):
+            if row["Действие"].lower() == "покупка":
+                return ['background-color: #d4f4dd'] * len(row)
+            elif row["Действие"].lower() == "продажа":
+                return ['background-color: #f4d4d4'] * len(row)
+            else:
+                return [''] * len(row)
+        st.write("Действия в таблице ниже позволили агенту прийти к зафиксированному финансовому результату.")
+        if not operations_df.empty:
+            st.dataframe(
+                operations_df.style
+                .apply(highlight_action, axis=1)
+                .format({"Стоимость": "{:.1f} ₽", "Баланс портфеля": "{:,.0f} ₽"}),
+                hide_index=True,
+                column_config={
+                    "Стоимость": st.column_config.NumberColumn(format="%.2f ₽"),
+                    "Баланс портфеля": st.column_config.NumberColumn(format="%d ₽")
+                }
+            )
+        else:
+            st.info("В выбранном периоде нет операций.")
 
-    gb = GridOptionsBuilder.from_dataframe(trades)
 
-    # Включаем группировку по "Дата" и "Действие"
-    gb.configure_column("Дата", rowGroup=True, hide=True)
-    gb.configure_column("Действие", rowGroup=True, hide=True)
 
-    # JS код для подсветки строк по значению в колонке "Действие"
-    cellsytle_jscode = """
-    function(params) {
-        if (params.data && params.data['Действие'] === 'Покупка') {
-            return {'backgroundColor': '#d4f4dd'};
-        } else if (params.data && params.data['Действие'] === 'Продажа') {
-            return {'backgroundColor': '#f4d4d4'};
-        }
-        return null;
-    }
-    """
-
-    # Применяем подсветку к нужным колонкам
-    for col in ["Акция", "Количество", "Стоимость", "Баланс портфеля"]:
-        gb.configure_column(col, cellStyle=cellsytle_jscode)
-
-    gridOptions = gb.build()
-
-    # Отображаем таблицу с включенной группировкой и подсветкой
-    AgGrid(
-        trades,
-        gridOptions=gridOptions,
-        enable_enterprise_modules=True,  # Нужно для группировки
-        fit_columns_on_grid_load=True,
-        height=400,
-    )
     return
