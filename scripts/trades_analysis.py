@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import plotly.graph_objects as go
+from collections import defaultdict
 
 def trades_history(trade, df_account_value, df_actions):
 
@@ -51,3 +53,260 @@ def trades_history(trade, df_account_value, df_actions):
     trades_history['free_assets'] = trades_history['free_assets'].apply(lambda x: round(x, 2))
 
     return trades_history
+
+
+def calculate_fifo_portfolio(trades, df_account_value):
+    shares_last_day = trades['portfolio'][trades['date'] == max(df_account_value['date'])].values[0].keys()
+    data = defaultdict(lambda: {'покупки': [], 'продажи': []})
+
+    for actions in trades['actions']:
+        if pd.isna(actions):
+            continue
+        else:
+            for key, val in actions.items():
+                if key not in shares_last_day:
+                    continue
+                qty, price = val
+                if qty > 0:
+                    data[key]['покупки'] += [qty, price]
+                elif qty < 0:
+                    data[key]['продажи'] += [abs(qty), abs(price)]
+
+    result = {}
+
+    for stock, trades in data.items():
+        purchases_raw = trades.get('покупки', [])
+        sales_raw = trades.get('продажи', [])
+
+        purchases = [(purchases_raw[i], purchases_raw[i+1]/purchases_raw[i]) for i in range(0, len(purchases_raw), 2)]
+        sales = [(sales_raw[i], sales_raw[i+1]/sales_raw[i]) for i in range(0, len(sales_raw), 2)]
+
+        purchase_queue = [{'qty': qty, 'price': price} for qty, price in purchases]
+
+        for sold_qty, sold_price in sales:
+            qty_to_sell = sold_qty
+            while qty_to_sell > 0 and purchase_queue:
+                lot = purchase_queue[0]
+                if lot['qty'] <= qty_to_sell:
+                    qty_to_sell -= lot['qty']
+                    purchase_queue.pop(0)
+                else:
+                    lot['qty'] -= qty_to_sell
+                    qty_to_sell = 0
+
+        total_qty = sum(lot['qty'] for lot in purchase_queue)
+        if total_qty == 0:
+            average_price = 0
+        else:
+            total_cost = sum(lot['qty'] * lot['price'] for lot in purchase_queue)
+            average_price = total_cost / total_qty
+
+        result[stock] = round(average_price, 2)
+
+    return result
+
+
+def calc_profit(trades, portfolio_structure):
+
+    data = defaultdict(lambda: {'покупки': [], 'продажи': []})
+
+    for actions in trades['actions']:
+        if pd.isna(actions):
+            continue
+        else:
+            for key, val in actions.items():
+                qty, price = val
+                if qty > 0:
+                    data[key]['покупки'] += [qty, price]
+                elif qty < 0:
+                    data[key]['продажи'] += [abs(qty), abs(price)]
+
+    current_prices = dict(zip(portfolio_structure['Акция'], portfolio_structure['Стоимость в ПДТ']))
+
+
+    # for actions in trades['actions']:
+    #     if pd.isna(actions):
+    #         continue
+    #     else:
+    #         for key, val in actions.items():
+    #             if key not in data:
+    #                 data[key] = val[1]
+    #             else:
+    #                 data[key] += val[1]
+
+    # not_saled = portfolio_structure[['Акция', 'Количество (шт.)', 'Средняя стоимость покупки']][portfolio_structure['Акция'] != '']
+    # # for share in not_saled['Акция']:
+    # #     # print(share)
+    # #     # print(data[share])
+    # #     # print(not_saled['Общая стоимость (руб.)'][not_saled['Акция'] == share])
+    # #     data[share] = not_saled['Количество (шт.)'][not_saled['Акция'] == share].values[0] * not_saled['Средняя стоимость покупки'][not_saled['Акция'] == share].values[0] - data[share]
+    # data = dict(sorted(data.items(), key=lambda x: x[1]))
+
+    # stocks = list(data.keys())
+    # profits = [int(i) for i in list(data.values())]
+
+    # colors = ['#75e68f' if val >= 0 else '#ff1a6a' for val in profits]
+    # border_colors = ['#3c8d40' if val >= 0 else '#b3134a' for val in profits]  # Темнее для обводки
+
+    # fig = go.Figure()
+
+    # fig.add_trace(go.Bar(
+    #     x=stocks,
+    #     y=profits,
+    #     marker_color=colors,
+    #     marker_line_color=border_colors,
+    #     marker_line_width=2,
+    #     text=[f"{val:,} ₽" for val in profits],  # форматируем числа с разделителем тысяч и ₽
+    #     textposition=['outside' if val >= 0 else 'inside' for val in profits],
+    #     textfont=dict(
+    #         color=border_colors,
+    #         size=14
+    #     ),
+    #     insidetextanchor='middle'
+    # ))
+
+    # fig.update_layout(
+    #     title='Профит по акциям',
+    #     yaxis_title='Сумма (руб.)',
+    #     xaxis_title='Акция',
+    #     yaxis=dict(
+    #         zeroline=True,
+    #         rangemode='tozero',
+    #         showgrid=True,
+    #         gridwidth=1,
+    #         zerolinecolor='black',
+    #         zerolinewidth=2,
+    #         minor=dict(
+    #             ticklen=4,
+    #             showgrid=True,
+    #             gridcolor='LightGray',
+    #             gridwidth=0.5
+    #         )
+    #     ),
+    #     xaxis=dict(
+    #         showgrid=False,
+    #         tickfont=dict(size=14)
+    #     ),
+    #     bargap=0.3,
+    #     plot_bgcolor='white',
+    #     margin=dict(t=60, b=60)
+    # )
+
+    # return fig
+
+    results = {}
+
+    for stock, trades in data.items():
+        # Преобразуем покупки и продажи в списки (qty, price_per_share)
+        purchases_raw = trades.get('покупки', [])
+        sales_raw = trades.get('продажи', [])
+
+        # Преобразуем из [qty, total_cost, ...] в [(qty, price_per_share), ...]
+        purchases = []
+        for i in range(0, len(purchases_raw), 2):
+            qty = purchases_raw[i]
+            total_cost = purchases_raw[i+1]
+            price = total_cost / qty if qty != 0 else 0
+            purchases.append({'qty': qty, 'price': price})
+
+        sales = []
+        for i in range(0, len(sales_raw), 2):
+            qty = sales_raw[i]
+            total_cost = sales_raw[i+1]
+            price = total_cost / qty if qty != 0 else 0
+            sales.append({'qty': qty, 'price': price})
+
+        purchase_queue = purchases.copy()
+        profit_realized = 0.0
+
+        # Расчет реализованной прибыли методом FIFO
+        for sale in sales:
+            qty_to_sell = sale['qty']
+            sale_price = sale['price']
+
+            while qty_to_sell > 0 and purchase_queue:
+                lot = purchase_queue[0]
+                if lot['qty'] <= qty_to_sell:
+                    profit_realized += lot['qty'] * (sale_price - lot['price'])
+                    qty_to_sell -= lot['qty']
+                    purchase_queue.pop(0)
+                else:
+                    profit_realized += qty_to_sell * (sale_price - lot['price'])
+                    lot['qty'] -= qty_to_sell
+                    qty_to_sell = 0
+
+            # Если продано больше, чем куплено (короткая позиция), можно обработать отдельно
+
+        # Остаток акций после продаж
+        total_qty = sum(lot['qty'] for lot in purchase_queue)
+        if total_qty > 0:
+            total_cost = sum(lot['qty'] * lot['price'] for lot in purchase_queue)
+            avg_price = total_cost / total_qty
+        else:
+            avg_price = 0.0
+
+        # Нереализованный доход по остаткам
+        current_price = current_prices.get(stock, avg_price)  # если нет текущей цены, берем avg_price
+        unrealized_profit = (current_price - avg_price) * total_qty if total_qty > 0 else 0.0
+
+        results[stock] = {
+            'реализованная_прибыль': round(profit_realized, 2),
+            'нереализованный_доход': round(unrealized_profit, 2),
+            'общий_доход': round(profit_realized + unrealized_profit, 2),
+            'остаток_акций': total_qty,
+            'средняя_цена_остатка': round(avg_price, 2)
+        }
+
+    income_type = 'общий_доход'
+
+    stocks = list(results.keys())
+    values = [int(results[stock][income_type]) for stock in stocks]
+
+    sorted_data = sorted(zip(stocks, values), key=lambda x: x[1])
+    sorted_stocks, sorted_values = zip(*sorted_data) if sorted_data else ([], [])
+
+    colors = ['#adffb3' if val >= 0 else '#ffa8a8' for val in sorted_values]
+    border_colors = ['#008f21' if val >= 0 else '#bd0000' for val in sorted_values]
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Bar(
+        x=list(sorted_stocks),
+        y=list(sorted_values),
+        marker_color=colors,
+        marker_line_color=border_colors,
+        marker_line_width=1.5,
+        text=[f"{val:,}" for val in sorted_values],
+        textposition=['outside' if val >= 0 else 'inside' for val in sorted_values],
+        textfont=dict(color=border_colors, size=14)
+    ))
+
+    fig.update_layout(
+        title='Профит по акциям',
+        yaxis_title='Сумма (руб.)',
+        xaxis_title='Акция',
+        yaxis=dict(
+            zeroline=True,
+            rangemode='tozero',
+            showgrid=True,
+            gridwidth=1,
+            zerolinecolor='black',
+            zerolinewidth=2,
+            minor=dict(
+                ticklen=4,
+                showgrid=True,
+                gridcolor='LightGray',
+                gridwidth=0.5
+            )
+        ),
+        xaxis=dict(
+            showgrid=False,
+            tickfont=dict(size=14)
+        ),
+        bargap=0.3,
+        plot_bgcolor='white',
+        margin=dict(t=60, b=60)
+    )
+
+
+    return fig, results

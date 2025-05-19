@@ -16,10 +16,12 @@ from st_aggrid import AgGrid, GridOptionsBuilder
 
 
 import streamlit as st
+import random
+
 from scripts.connection import connection
 from scripts.data_filling import fill_data
 from scripts.compare_fig import plot_compare_chart
-from scripts.trades_analysis import trades_history
+from scripts.trades_analysis import trades_history, calculate_fifo_portfolio, calc_profit
 
 import sys
 sys.path.append("../FinRL-Library")
@@ -37,6 +39,15 @@ from scripts.config import tooltip_text
 
 table_name = 'hour_shares_data'
 threshold_date = '2018-01-01'
+
+import torch
+from stable_baselines3.common.utils import set_random_seed
+
+seed = 42
+random.seed(seed)
+np.random.seed(seed)
+torch.manual_seed(seed)
+set_random_seed(seed)
 
 def extract_train_data(conn, selected, start_date, table_name, threshold_date):
     data = pd.read_sql_query(f"""
@@ -122,7 +133,7 @@ def create_trade_env(data, capital):
         "action_space": stock_dimension,
         "reward_scaling": 1e-4
     }
-    e_trade_gym = StockTradingEnv(df=data, turbulence_threshold = 70, **env_kwargs)
+    e_trade_gym = StockTradingEnv(df=data, turbulence_threshold = 70, **env_kwargs,)
     return e_trade_gym
 
 def mvo_strategy(processed_train, processed_trade, capital):
@@ -188,7 +199,7 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
         selected_shares = tuple(selected_shares)
 
     with st.expander(label="Этапы обучения агента", expanded=True):
-
+        start = time.time()
         train_data = extract_train_data(connection(), selected_shares, start_date, table_name, threshold_date)
         st.write(f"""✅ Торговые данные выгружены из базы данных c {format_date(min(train_data['time']), format='d MMMM yyyy', locale='ru')} года.""")
         full_train_data = fill_data(train_data)
@@ -230,13 +241,27 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
                                                 model=trained_model,
                                                 environment=env_trade)
         st.success(f"""Агент окончательно определился с торговой стратегией.""")
+        end = time.time()
+        st.write(f"🕑 Подбор лучшей стратегии занял {round((end-start)/60,2)} мин.")
 
     mvo = mvo_strategy(processed_train, processed_trade, capital)
+    trades = trades_history(processed_trade, df_account_value, df_actions)
+
     indexes_info = pd.read_sql_query("select * from stock_market_indexes", connection())
     indexes_info = indexes_info[(indexes_info['date'] >= min(df_account_value['date'])) &
                                 (indexes_info['date'] <= max(df_account_value['date']))]
     imoex_start = indexes_info['imoex'][indexes_info['date'] == min(df_account_value['date'])].values[0]
     imoex_end = indexes_info['imoex'][indexes_info['date'] == max(df_account_value['date'])].values[0]
+
+    turnover = 0
+    for _, row in trades.iterrows():
+        actions = row["actions"]
+        if pd.isna(actions):
+            continue
+        else:
+            for ticker, val in actions.items():
+                turnover += abs(val[1])
+
 
     cp1 = capital
     cp2 = round(df_account_value['account_value'].tolist()[-1])
@@ -245,12 +270,12 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
     cp5 = 100 * (imoex_end - imoex_start) / imoex_start
 
     m1, m2 = st.columns(2)
-    m3, m4 = st.columns(2)
+    m3, m4, m5= st.columns(3)
     m1.metric(label=f"Баланс стратегии {selected_model.upper()}", value=f"{cp2} ₽", delta=f"{cp2-cp1} ₽", border=False, help='Баланс портфеля (руб.) в результате торговой стратегии, выбранной агентом.')
     m2.metric(label="Баланс стратегии MVO", value=f"{cp3} ₽", delta=f"{cp3-cp1} ₽", border=False, help='Баланс портфеля (руб.) в результате торговой стратегии MVO.')
     m3.metric(label=f"Разница {selected_model.upper()} & MVO", value=f"{round(100*(cp2-cp3)/cp3,1)} %", border=False, help='На сколько % стратегия агента выгодней стратегии MVO.')
     m4.metric(label=f"Разница {selected_model.upper()} & IMOEX", value=f"{round(cp4-cp5, 1)} %", border=False, help='На сколько % стратегия агента эффективней индекса MOEX.')
-
+    m5.metric(label="Оборот портфеля", value=f"{round(turnover)} ₽", border=False, help='Cумма всех операций по внесению и снятию денежных средств и ценных бумаг.')
     # st.write(mvo_strategy(processed_train, processed_trade, capital))
     # st.write(df_account_value)
     with st.expander("Подсказки"):
@@ -275,21 +300,25 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
     elif cp4 <= cp5:
         st.write(f'Выбранных параметров торговли и параметров модели оказалось недостаточно, чтобы агент сумел сформировать стратегию "обгоняющую рынок". Стратегия агента оказалась менее прибыльной по сравнению с рыночным ориентиром на {round(cp5-cp4,1)}%.')
 
-    trades = trades_history(processed_trade, df_account_value, df_actions)
-    # st.dataframe(trades)
+    shares_mean_price = calculate_fifo_portfolio(trades, df_account_value)
+    # st.dataframe(portfolio_profit)
 
     st.markdown("#### Анализ стратегии")
-
+    st.write("Агент завершил последний торговый день с портфелем ниже:")
+    # st.dataframe(trades[['account_value', 'share_assets', 'free_assets']])
     rows_1 = []
     portfolio_last = trades['portfolio'][trades['date'] == max(df_account_value['date'])].values[0]
     free_assets_last = trades['free_assets'][trades['date'] == max(df_account_value['date'])].values[0]
     for stock, values in portfolio_last.items():
         qty, cost = sorted(values)
-        rows_1.append({"Акция": stock, "Количество (шт.)": qty, "Стоимость (руб.)": round(cost)})
-    portfolio_structure = pd.DataFrame(rows_1).sort_values(by='Стоимость (руб.)', ascending=False)
+        rows_1.append({"Акция": stock, "Количество (шт.)": round(qty), "Общая стоимость (руб.)": round(cost)})
+    portfolio_structure = pd.DataFrame(rows_1).sort_values(by='Общая стоимость (руб.)', ascending=False)
+    portfolio_structure['Стоимость в ПДТ'] = round(portfolio_structure['Общая стоимость (руб.)'] / portfolio_structure['Количество (шт.)'],2)
+    portfolio_structure = portfolio_structure.merge(pd.DataFrame(list(shares_mean_price.items()), columns=['Акция', 'Средняя стоимость покупки']), how='left', on='Акция')
+    portfolio_structure = portfolio_structure[['Акция', 'Количество (шт.)', 'Общая стоимость (руб.)','Средняя стоимость покупки', 'Стоимость в ПДТ']]
     additional_rows = pd.DataFrame([
-        {"Акция": "₽", "Количество (шт.)": '', "Стоимость (руб.)": free_assets_last},
-        {"Акция": "Итого", "Количество (шт.)": '', "Стоимость (руб.)": round(trades['account_value'][trades['date'] == max(df_account_value['date'])].values[0])}
+        {"Акция": "",  "Количество (шт.)": '₽', "Общая стоимость (руб.)": free_assets_last, 'Средняя стоимость покупки':'', 'Стоимость в ПДТ':''},
+        {"Акция": "",  "Количество (шт.)": 'Итого', "Общая стоимость (руб.)": round(trades['account_value'][trades['date'] == max(df_account_value['date'])].values[0]), 'Средняя стоимость покупки':'', 'Стоимость в ПДТ':''}
     ])
     portfolio_structure = pd.concat([portfolio_structure, additional_rows], ignore_index=True)
     st.dataframe(portfolio_structure, hide_index=True)
@@ -302,16 +331,16 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
             account_val = row['account_value']
             if pd.isna(actions):
                 continue
-            for ticker, (qty, cost) in actions.items():
+            for ticker, val in actions.items():
                 operations.append({
                     "Дата": date.date(),
-                    "Действие": "Покупка" if qty > 0 else "Продажа",
+                    "Действие": "Покупка" if val[0] > 0 else "Продажа",
                     "Акция": ticker,
-                    "Количество": abs(qty),
-                    "Стоимость": abs(round(cost)),
+                    "Количество": abs(val[0]),
+                    "Общая стоимость": abs(round(val[1])),
                     "Баланс портфеля": account_val
                 })
-        operations_df = pd.DataFrame(operations).sort_values(by=['Дата', 'Действие', 'Стоимость'], ascending=[True, True, False])
+        operations_df = pd.DataFrame(operations).sort_values(by=['Дата', 'Действие', 'Общая стоимость'], ascending=[True, True, False])
         def highlight_action(row):
             if row["Действие"].lower() == "покупка":
                 return ['background-color: #d4f4dd'] * len(row)
@@ -324,16 +353,19 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
             st.dataframe(
                 operations_df.style
                 .apply(highlight_action, axis=1)
-                .format({"Стоимость": "{:.1f} ₽", "Баланс портфеля": "{:,.0f} ₽"}),
+                .format({"Общая стоимость": "{:.0f} ₽", "Баланс портфеля": "{:,.0f} ₽"}),
                 hide_index=True,
                 column_config={
-                    "Стоимость": st.column_config.NumberColumn(format="%.2f ₽"),
+                    "Общая стоимость": st.column_config.NumberColumn(format="%.0f ₽"),
                     "Баланс портфеля": st.column_config.NumberColumn(format="%d ₽")
                 }
             )
         else:
             st.info("В выбранном периоде нет операций.")
 
-
+    diagram, tab = calc_profit(trades, portfolio_structure)
+    st.plotly_chart(diagram, use_container_width=True)
+    # st.dataframe(tab)
+    # st.dataframe(calc_profit(trades, portfolio_structure))
 
     return
