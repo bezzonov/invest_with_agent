@@ -310,3 +310,43 @@ def calc_profit(trades, portfolio_structure):
 
 
     return fig, results
+
+
+# def sharpe(df):
+#     df['daily_return'] = df['account_value'].pct_change()
+#     returns = df['daily_return'].dropna()
+
+#     risk_free_rate = 0.11  # годовая безрисковая ставка
+#     trading_days = df.shape[0]
+
+#     daily_risk_free = (1 + risk_free_rate)**(1/trading_days) - 1
+#     excess_returns = returns - daily_risk_free
+
+#     sharpe_ratio = (excess_returns.mean() / excess_returns.std()) * np.sqrt(trading_days)
+#     return round(sharpe_ratio,2)
+
+def max_drawdown(account_values):
+    """
+    Рассчитывает максимальную просадку по серии значений стоимости портфеля.
+    """
+    running_max = account_values.cummax()
+    drawdowns = (account_values - running_max) / running_max
+    return drawdowns.min()
+
+
+def max_runup(account_values):
+    """
+    Рассчитывает максимальный рост (run-up) по серии значений стоимости портфеля.
+    """
+    running_min = account_values.cummin()
+    runups = (account_values - running_min) / running_min
+    return runups.max()
+
+
+def volatility(account_values):
+    """
+    Рассчитывает годовую волатильность по дневным доходностям портфеля.
+    """
+    daily_returns = account_values.pct_change().dropna()
+    std_daily = daily_returns.std()
+    return std_daily * np.sqrt(len(account_values))

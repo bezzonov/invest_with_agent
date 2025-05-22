@@ -210,7 +210,7 @@ def main_page():
                 try:
                     result = model_train_predict(stocks, capital, start_date, end_date, selected_model, st.session_state.selected_params)
                     st.session_state.training_result = result
-                except MemoryError:
+                except:
                     st.warning('Что-то пошло не так, попробуйте снова.')
     else:
         st.info("Нажмите на кнопку, чтобы начать обучение.")

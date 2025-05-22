@@ -21,7 +21,7 @@ import random
 from scripts.connection import connection
 from scripts.data_filling import fill_data
 from scripts.compare_fig import plot_compare_chart
-from scripts.trades_analysis import trades_history, calculate_fifo_portfolio, calc_profit
+from scripts.trades_analysis import trades_history, calculate_fifo_portfolio, calc_profit, max_drawdown, max_runup, volatility
 
 import sys
 sys.path.append("../FinRL-Library")
@@ -62,7 +62,7 @@ def extract_train_data(conn, selected, start_date, table_name, threshold_date):
 def create_train_env(data, capital):
     stock_dimension = len(data.tic.unique())
     state_space =  len(INDICATORS)*stock_dimension + 1 + 2*stock_dimension
-    buy_cost_list = sell_cost_list = [0.001] * stock_dimension
+    buy_cost_list = sell_cost_list = [0.005] * stock_dimension
     num_stock_shares = [0] * stock_dimension
     env_kwargs = {
         "hmax": 100,
@@ -119,7 +119,7 @@ def extract_trade_data(conn, selected, start_date, end_date, table_name):
 def create_trade_env(data, capital):
     stock_dimension = len(data.tic.unique())
     state_space = 1 + 2*stock_dimension + len(INDICATORS)*stock_dimension
-    buy_cost_list = sell_cost_list = [0.001] * stock_dimension
+    buy_cost_list = sell_cost_list = [0.005] * stock_dimension
     num_stock_shares = [0] * stock_dimension
     env_kwargs = {
         "hmax": 100,
@@ -271,13 +271,19 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
 
     m1, m2 = st.columns(2)
     m3, m4, m5= st.columns(3)
-    m1.metric(label=f"Баланс стратегии {selected_model.upper()}", value=f"{cp2} ₽", delta=f"{cp2-cp1} ₽", border=False, help='Баланс портфеля (руб.) в результате торговой стратегии, выбранной агентом.')
-    m2.metric(label="Баланс стратегии MVO", value=f"{cp3} ₽", delta=f"{cp3-cp1} ₽", border=False, help='Баланс портфеля (руб.) в результате торговой стратегии MVO.')
+    m6, m7, m8= st.columns(3)
+
+    m1.metric(label=f"Баланс стратегии {selected_model.upper()}", value=f"""{f"{cp2:,}".replace(',', '.')} ₽""", delta=f"""{f"{cp2-cp1:,}".replace(',', '.')} ₽""", border=False, help='Баланс портфеля (руб.) в результате торговой стратегии, выбранной агентом.')
+    m2.metric(label="Баланс стратегии MVO", value=f"""{f"{cp3:,}".replace(',', '.')} ₽""", delta=f"""{f"{cp3-cp1:,}".replace(',', '.')} ₽""", border=False, help='Баланс портфеля (руб.) в результате торговой стратегии MVO.')
     m3.metric(label=f"Разница {selected_model.upper()} & MVO", value=f"{round(100*(cp2-cp3)/cp3,1)} %", border=False, help='На сколько % стратегия агента выгодней стратегии MVO.')
     m4.metric(label=f"Разница {selected_model.upper()} & IMOEX", value=f"{round(cp4-cp5, 1)} %", border=False, help='На сколько % стратегия агента эффективней индекса MOEX.')
-    m5.metric(label="Оборот портфеля", value=f"{round(turnover)} ₽", border=False, help='Cумма всех операций по внесению и снятию денежных средств и ценных бумаг.')
+    m5.metric(label="Оборот портфеля", value=f"""{f"{round(turnover):,}".replace(',', '.')} ₽""", border=False, help='Cумма всех операций по внесению и снятию денежных средств и ценных бумаг.')
     # st.write(mvo_strategy(processed_train, processed_trade, capital))
     # st.write(df_account_value)
+    m6.metric(label=f"Максимальная просадка", value=f"""{round(100*max_drawdown(df_account_value['account_value']),1)} %""", border=False, help='Максимальная просадка — максимальное падение от локального максимума до локального минимума.')
+    m7.metric(label=f"Максимальный рост", value=f"""{round(100*max_runup(df_account_value['account_value']),1)} %""", border=False, help='Максимальный рост от локального минимума до локального максимума.')
+    m8.metric(label=f"Волатильность", value=f"""{round(100*volatility(df_account_value['account_value']),1)} %""", border=False, help='Волатильность — стандартное отклонение доходностей, масштабированное на год.')
+
     with st.expander("Подсказки"):
         st.info('Mean-Variance Optimization (MVO) - это одна из самых мощных и широко используемых методик в современной инвестиционной теории, лежащая в основе эффективного управления портфелем. Она позволяет инвесторам оптимально распределять активы, чтобы максимизировать ожидаемую доходность при заданном уровне риска или минимизировать риск при заданной доходности.')
         st.info('IMOEX - Индекс Московской биржи (MOEX Russia Index), основной широкий индекс российского рынка, включающий наиболее ликвидные акции.')
