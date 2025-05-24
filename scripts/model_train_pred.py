@@ -21,7 +21,7 @@ import random
 from scripts.connection import connection
 from scripts.data_filling import fill_data
 from scripts.compare_fig import plot_compare_chart
-from scripts.trades_analysis import trades_history, calculate_fifo_portfolio, calc_profit, max_drawdown, max_runup, volatility
+from scripts.trades_analysis import trades_history, calculate_fifo_portfolio, calc_profit, max_drawdown, max_runup, volatility, shares_tree
 
 import sys
 sys.path.append("../FinRL-Library")
@@ -244,6 +244,8 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
         end = time.time()
         st.write(f"🕑 Подбор лучшей стратегии занял {round((end-start)/60,2)} мин.")
 
+    st.markdown("#### Анализ стратегии")
+
     mvo = mvo_strategy(processed_train, processed_trade, capital)
     trades = trades_history(processed_trade, df_account_value, df_actions)
 
@@ -253,7 +255,14 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
     imoex_start = indexes_info['imoex'][indexes_info['date'] == min(df_account_value['date'])].values[0]
     imoex_end = indexes_info['imoex'][indexes_info['date'] == max(df_account_value['date'])].values[0]
 
+    cp1 = capital
+    cp2 = round(df_account_value['account_value'].tolist()[-1])
+    cp3 = round(mvo['Mean Var Optimization'].tolist()[-1])
+    cp4 = 100 * (round(df_account_value['account_value'].tolist()[-1]) - capital) / capital
+    cp5 = 100 * (imoex_end - imoex_start) / imoex_start
+
     turnover = 0
+    rubles = capital
     for _, row in trades.iterrows():
         actions = row["actions"]
         if pd.isna(actions):
@@ -261,13 +270,7 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
         else:
             for ticker, val in actions.items():
                 turnover += abs(val[1])
-
-
-    cp1 = capital
-    cp2 = round(df_account_value['account_value'].tolist()[-1])
-    cp3 = round(mvo['Mean Var Optimization'].tolist()[-1])
-    cp4 = 100 * (round(df_account_value['account_value'].tolist()[-1]) - capital) / capital
-    cp5 = 100 * (imoex_end - imoex_start) / imoex_start
+                rubles -= val[1]
 
     m1, m2 = st.columns(2)
     m3, m4, m5= st.columns(3)
@@ -308,13 +311,10 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
 
     shares_mean_price = calculate_fifo_portfolio(trades, df_account_value)
     # st.dataframe(portfolio_profit)
-
-    st.markdown("#### Анализ стратегии")
     st.write("Агент завершил последний торговый день с портфелем ниже:")
     # st.dataframe(trades[['account_value', 'share_assets', 'free_assets']])
     rows_1 = []
     portfolio_last = trades['portfolio'][trades['date'] == max(df_account_value['date'])].values[0]
-    free_assets_last = trades['free_assets'][trades['date'] == max(df_account_value['date'])].values[0]
     for stock, values in portfolio_last.items():
         qty, cost = sorted(values)
         rows_1.append({"Акция": stock, "Количество (шт.)": round(qty), "Общая стоимость (руб.)": round(cost)})
@@ -323,7 +323,7 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
     portfolio_structure = portfolio_structure.merge(pd.DataFrame(list(shares_mean_price.items()), columns=['Акция', 'Средняя стоимость покупки']), how='left', on='Акция')
     portfolio_structure = portfolio_structure[['Акция', 'Количество (шт.)', 'Общая стоимость (руб.)','Средняя стоимость покупки', 'Стоимость в ПДТ']]
     additional_rows = pd.DataFrame([
-        {"Акция": "",  "Количество (шт.)": '₽', "Общая стоимость (руб.)": free_assets_last, 'Средняя стоимость покупки':'', 'Стоимость в ПДТ':''},
+        {"Акция": "",  "Количество (шт.)": '₽', "Общая стоимость (руб.)": round(rubles,1), 'Средняя стоимость покупки':'', 'Стоимость в ПДТ':''},
         {"Акция": "",  "Количество (шт.)": 'Итого', "Общая стоимость (руб.)": round(trades['account_value'][trades['date'] == max(df_account_value['date'])].values[0]), 'Средняя стоимость покупки':'', 'Стоимость в ПДТ':''}
     ])
     portfolio_structure = pd.concat([portfolio_structure, additional_rows], ignore_index=True)
@@ -369,9 +369,10 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
         else:
             st.info("В выбранном периоде нет операций.")
 
-    diagram, tab = calc_profit(trades, portfolio_structure)
-    st.plotly_chart(diagram, use_container_width=True)
-    # st.dataframe(tab)
-    # st.dataframe(calc_profit(trades, portfolio_structure))
+    diagram1, tab1 = calc_profit(trades, portfolio_structure)
+    st.plotly_chart(diagram1, use_container_width=True)
+    diagram2, tab2 = shares_tree(trades, tab1)
+    st.plotly_chart(diagram2, use_container_width=True)
+    st.dataframe(tab2)
 
     return

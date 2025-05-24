@@ -1,0 +1,1 @@
+source /c/Users/besso/Anaconda3/etc/profile.d/conda.sh

@@ -51,4 +51,4 @@ def shares_list_for_user(conn, table_name, threshold_date):
     data = pd.read_sql_query(query, conn)
     return data
 
-shares_list = {row[1]:row[2] for row in shares_list_for_user(connection(), 'hour_shares_data', '2015-01-01').itertuples()}
+shares_list = {row[1]:row[2] for row in shares_list_for_user(connection(), 'hour_shares_data', '2017-01-01').itertuples()}

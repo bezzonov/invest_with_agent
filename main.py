@@ -58,9 +58,9 @@ def main_page():
         capital = st.number_input("Капитал для торговли (руб.)", min_value=10000, max_value=5_000_000, step=10000, value=100_000)
         col1, col2 = st.columns(2)
 
-        min_start_date = datetime.today() - timedelta(days=365*10)
+        min_start_date = datetime.today() - timedelta(days=365*7)
         max_start_date = datetime.today() - timedelta(days=7)
-        min_end_date = datetime.today() - timedelta(days=365*10) + timedelta(days=7)
+        min_end_date = datetime.today() - timedelta(days=365*7) + timedelta(days=7)
         max_end_date = datetime.today()
 
         with col1:

@@ -1,7 +1,9 @@
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import plotly.express as px
 from collections import defaultdict
+from scripts.config import sector_info
 
 def trades_history(trade, df_account_value, df_actions):
 
@@ -249,18 +251,18 @@ def calc_profit(trades, portfolio_structure):
         current_price = current_prices.get(stock, avg_price)  # если нет текущей цены, берем avg_price
         unrealized_profit = (current_price - avg_price) * total_qty if total_qty > 0 else 0.0
 
-        results[stock] = {
-            'реализованная_прибыль': round(profit_realized, 2),
-            'нереализованный_доход': round(unrealized_profit, 2),
-            'общий_доход': round(profit_realized + unrealized_profit, 2),
-            'остаток_акций': total_qty,
-            'средняя_цена_остатка': round(avg_price, 2)
-        }
+        results[stock] = round(profit_realized + unrealized_profit, 2)
+            # 'реализованная_прибыль': round(profit_realized, 2),
+            # 'нереализованный_доход': round(unrealized_profit, 2),
 
-    income_type = 'общий_доход'
+            # 'остаток_акций': total_qty,
+            # 'средняя_цена_остатка': round(avg_price, 2)
+
+
+
 
     stocks = list(results.keys())
-    values = [int(results[stock][income_type]) for stock in stocks]
+    values = [int(results[stock]) for stock in stocks]
 
     sorted_data = sorted(zip(stocks, values), key=lambda x: x[1])
     sorted_stocks, sorted_values = zip(*sorted_data) if sorted_data else ([], [])
@@ -309,7 +311,62 @@ def calc_profit(trades, portfolio_structure):
     )
 
 
-    return fig, results
+    return fig, results #, shares_activity
+
+def shares_tree(trades, tab):
+    shares_activity = {}
+    for actions in trades['actions']:
+        if pd.isna(actions):
+            continue
+        else:
+            for key, val in actions.items():
+                qty, price = val
+                if  key not in shares_activity:
+                    shares_activity[key] = qty
+                else:
+                    if qty > 0:
+                        shares_activity[key] += qty
+
+    df = pd.DataFrame.from_dict(sector_info, orient='index', columns=['Сектор'])
+    df['Куплено, шт.'] = df.index.map(shares_activity)
+    df['Профит, руб.'] = df.index.map(tab)
+    df = df.dropna(subset=['Куплено, шт.'])
+    df = df.reset_index().rename(columns={'index': 'Акция'})
+
+    fig = px.treemap(
+    df,
+    path=['Сектор', 'Акция'],
+    color='Профит, руб.',
+    values='Куплено, шт.',
+    color_continuous_scale='RdYlGn',
+    hover_data={'Куплено, шт.': True, 'Профит, руб.': True},
+    title='Дерево акций по секторам с отображением прибыли и количества купленных акций'
+)
+
+    fig.update_traces(
+        root_color="white",
+        marker_line_width=0,
+        tiling=dict(pad=0),
+        hovertemplate='<b>%{label}</b><br>Куплено: %{value}<br>Профит: %{color:.0f} руб.<extra></extra>'
+    )
+
+    # Увеличиваем размер графика и отодвигаем цветовую шкалу вправо
+    fig.update_layout(
+        width=1000
+        height=700,
+        paper_bgcolor='white',
+        plot_bgcolor='white',
+        margin=dict(t=40, l=20, r=100, b=20),
+        font=dict(size=14, family="Arial, sans-serif", color="#2a3f5f"),
+        coloraxis_colorbar=dict(
+            title="Профит, руб.",
+            thickness=20,
+            len=0.6,
+            x=1.05,  # Отодвигаем цветбар правее графика
+            y=0.7
+        )
+    )
+    return fig, df
 
 
 # def sharpe(df):
