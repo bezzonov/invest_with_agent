@@ -35,7 +35,7 @@ warnings.filterwarnings('ignore')
 import numpy as np
 import pandas as pd
 pd.set_option('display.max_columns', None)
-from scripts.config import tooltip_text
+from scripts.config import tooltip_text, sector_info
 
 table_name = 'hour_shares_data'
 threshold_date = '2018-01-01'
@@ -301,9 +301,9 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
                                        mvo),
                                        on_select="rerun")
     if cp2 >= cp3:
-        st.write(f'Торговая стратегия агента {selected_model.upper()} окалась более эффективной по сравнению со стратегией MVO на {cp2-cp3} руб. ({round(100*(cp2-cp3)/cp3, 1)}%)')
+        st.write(f'Торговая стратегия агента {selected_model.upper()} окалась более эффективной по сравнению со стратегией MVO на {cp2-cp3} ₽. ({round(100*(cp2-cp3)/cp3, 1)}%)')
     elif cp2 <= cp3:
-            st.write(f'Торговая стратегия агента {selected_model.upper()} окалась менее эффективной по сравнению со стратегией MVO на {cp3-cp2} руб. ({round(100*(cp3-cp2)/cp3, 1)}%)')
+            st.write(f'Торговая стратегия агента {selected_model.upper()} окалась менее эффективной по сравнению со стратегией MVO на {cp3-cp2} ₽. ({round(100*(cp3-cp2)/cp3, 1)}%)')
     if cp4 >= cp5:
         st.write(f'Выбранные параметры торговли и параметры модели помогли агенту сформировать стратегию, которая "обогнала рынок" на {round(cp4-cp5,1)}%.')
     elif cp4 <= cp5:
@@ -373,6 +373,28 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
     st.plotly_chart(diagram1, use_container_width=True)
     diagram2, tab2 = shares_tree(trades, tab1)
     st.plotly_chart(diagram2, use_container_width=True)
-    st.dataframe(tab2)
+    tab2_gr = tab2.groupby('Сектор', as_index=False).agg(most_buyed=('Куплено, шт.', 'sum')).sort_values(by='most_buyed', ascending=False).iloc[0].to_dict()
+    tab_best_share = tab2.sort_values(by='Профит, руб.', ascending=False).iloc[0].to_dict()
+    if tab2_gr['Сектор'] == tab_best_share['Сектор']:
+        st.info(f"""⚡️⚡️⚡️Агент считает наиболее перспективным сектор экономики "{tab2_gr['Сектор']}".За период торговли было куплено {round(tab2_gr['most_buyed'],1)} шт. акций компаний из этого сектора, также наиболее прибыльные торги
+                 были произведены агентом акциями компании из сектора "{tab2_gr['Сектор']}" - {tab_best_share['Акция']}, она в конечном итоге
+                 принесла в портфель около {round(tab_best_share['Профит, руб.'])} ₽.
+                 """)
+        st.info(f"""❗Общая рекомендация - обратить внимание на сектор экономи "{tab2_gr['Сектор']}",
+                 а это в первую очередь акции: {', '.join([k for k,v  in sector_info.items() if v == tab2_gr['Сектор']])}.""")
+    else:
+        st.info(f"""⚡️⚡️⚡️ Агент считает наиболее перспективным сектор экономики "{tab2_gr['Сектор']}".
+        За период торговли было куплено {round(tab2_gr['most_buyed'])} шт. акций компаний из этого сектора,
+        однако наиболее прибыльные торги были произведены агентом акциями компании из сектора "{tab_best_share['Сектор']}" -
+        {tab_best_share['Акция']}, она в конечном итоге принесла в портфель около {round(tab_best_share['Профит, руб.'])} ₽.
+        """)
+        st.info(f"""
+        ❗ Общая рекомендация - обратить внимание на сектор экономики "{tab2_gr['Сектор']}",
+                а это в первую очередь акции: {', '.join([k for k,v in sector_info.items() if v == tab2_gr['Сектор']])},
+                а также диверсифицировать портфель акциями лучших компаний сектора "{tab_best_share['Сектор']}", например, акциями:
+                {', '.join([k for k,v in sector_info.items() if v == tab_best_share['Сектор']][:2])}
+        """)
+
+
 
     return

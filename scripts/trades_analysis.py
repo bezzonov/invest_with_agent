@@ -327,45 +327,45 @@ def shares_tree(trades, tab):
                     if qty > 0:
                         shares_activity[key] += qty
 
-    df = pd.DataFrame.from_dict(sector_info, orient='index', columns=['Сектор'])
-    df['Куплено, шт.'] = df.index.map(shares_activity)
-    df['Профит, руб.'] = df.index.map(tab)
-    df = df.dropna(subset=['Куплено, шт.'])
-    df = df.reset_index().rename(columns={'index': 'Акция'})
+        df = pd.DataFrame.from_dict(sector_info, orient='index', columns=['Сектор'])
+        df['Куплено, шт.'] = df.index.map(shares_activity)
+        df['Профит, руб.'] = df.index.map(tab)
+        df = df.dropna(subset=['Куплено, шт.'])
+        df = df.reset_index().rename(columns={'index': 'Акция'})
 
     fig = px.treemap(
-    df,
-    path=['Сектор', 'Акция'],
-    color='Профит, руб.',
-    values='Куплено, шт.',
-    color_continuous_scale='RdYlGn',
-    hover_data={'Куплено, шт.': True, 'Профит, руб.': True},
-    title='Дерево акций по секторам с отображением прибыли и количества купленных акций'
-)
+        df,
+        path=['Сектор', 'Акция'],
+        color='Профит, руб.',           # Цвет по профиту
+        values='Куплено, шт.',          # Размер по количеству куплено
+        color_continuous_scale='RdYlGn',
+        color_continuous_midpoint=0,    # Центр цвета на 0 для баланса прибыли/убытка
+        hover_data={'Профит, руб.': True, 'Куплено, шт.': True},
+        title='Дерево акций по секторам с отображением прибыли и количества купленных акций'
+    )
 
     fig.update_traces(
         root_color="white",
         marker_line_width=0,
         tiling=dict(pad=0),
-        hovertemplate='<b>%{label}</b><br>Куплено: %{value}<br>Профит: %{color:.0f} руб.<extra></extra>'
+        hovertemplate='<b>%{label}</b><br>Куплено: %{value:.0f} шт.<extra></extra>'
     )
 
-    # Увеличиваем размер графика и отодвигаем цветовую шкалу вправо
     fig.update_layout(
-        width=1000
-        height=700,
+        height=450,
         paper_bgcolor='white',
         plot_bgcolor='white',
-        margin=dict(t=40, l=20, r=100, b=20),
+        margin=dict(t=40, l=60, r=24, b=30),  # увеличен левый отступ для цветбара
         font=dict(size=14, family="Arial, sans-serif", color="#2a3f5f"),
         coloraxis_colorbar=dict(
-            title="Профит, руб.",
-            thickness=20,
-            len=0.6,
-            x=1.05,  # Отодвигаем цветбар правее графика
-            y=0.7
+            title="Профит,<br>руб.",
+            thickness=15,
+            len=0.9,
+            x=-0.15,   # сдвиг цветовой шкалы влево (отрицательное значение)
+            y=0.5
         )
     )
+
     return fig, df
 
 
