@@ -42,6 +42,7 @@ threshold_date = '2018-01-01'
 import torch
 from stable_baselines3.common.utils import set_random_seed
 
+torch.classes.__path__ = []
 seed = 42
 random.seed(seed)
 np.random.seed(seed)
