@@ -12,7 +12,6 @@ from sqlalchemy import create_engine, TIMESTAMP, JSON
 from pprint import pprint
 from babel.dates import format_date
 from pypfopt.efficient_frontier import EfficientFrontier
-from st_aggrid import AgGrid, GridOptionsBuilder
 
 
 import streamlit as st
