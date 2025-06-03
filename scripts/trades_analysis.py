@@ -284,7 +284,7 @@ def calc_profit(trades, portfolio_structure):
     ))
 
     fig.update_layout(
-        title='Профит по акциям',
+        title='Прибыль по акциям',
         yaxis_title='Сумма (руб.)',
         xaxis_title='Акция',
         yaxis=dict(
@@ -329,18 +329,18 @@ def shares_tree(trades, tab):
 
         df = pd.DataFrame.from_dict(sector_info, orient='index', columns=['Сектор'])
         df['Куплено, шт.'] = df.index.map(shares_activity)
-        df['Профит, руб.'] = df.index.map(tab)
+        df['Прибыль, руб.'] = df.index.map(tab)
         df = df.dropna(subset=['Куплено, шт.'])
         df = df.reset_index().rename(columns={'index': 'Акция'})
 
     fig = px.treemap(
         df,
         path=['Сектор', 'Акция'],
-        color='Профит, руб.',           # Цвет по профиту
+        color='Прибыль, руб.',           # Цвет по профиту
         values='Куплено, шт.',          # Размер по количеству куплено
         color_continuous_scale='RdYlGn',
         color_continuous_midpoint=0,    # Центр цвета на 0 для баланса прибыли/убытка
-        hover_data={'Профит, руб.': True, 'Куплено, шт.': True},
+        hover_data={'Прибыль, руб.': True, 'Куплено, шт.': True},
         title='Дерево акций по секторам с отображением прибыли и количества купленных акций'
     )
 
@@ -358,7 +358,7 @@ def shares_tree(trades, tab):
         margin=dict(t=40, l=60, r=24, b=30),  # увеличен левый отступ для цветбара
         font=dict(size=14, family="Arial, sans-serif", color="#2a3f5f"),
         coloraxis_colorbar=dict(
-            title="Профит,<br>руб.",
+            title="Прибыль,<br>руб.",
             thickness=15,
             len=0.9,
             x=-0.15,   # сдвиг цветовой шкалы влево (отрицательное значение)

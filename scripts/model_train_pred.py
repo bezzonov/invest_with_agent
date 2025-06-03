@@ -246,6 +246,8 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
 
     st.markdown("#### Анализ стратегии")
 
+    # st.dataframe(df_actions)
+
     mvo = mvo_strategy(processed_train, processed_trade, capital)
     trades = trades_history(processed_trade, df_account_value, df_actions)
 
@@ -273,8 +275,8 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
                 rubles -= val[1]
 
     m1, m2 = st.columns(2)
-    m3, m4, m5= st.columns(3)
-    m6, m7, m8= st.columns(3)
+    m3, m4, m5 = st.columns(3)
+    m6, m7, m8 = st.columns(3)
 
     m1.metric(label=f"Баланс стратегии {selected_model.upper()}", value=f"""{f"{cp2:,}".replace(',', '.')} ₽""", delta=f"""{f"{cp2-cp1:,}".replace(',', '.')} ₽""", border=False, help='Баланс портфеля (руб.) в результате торговой стратегии, выбранной агентом.')
     m2.metric(label="Баланс стратегии MVO", value=f"""{f"{cp3:,}".replace(',', '.')} ₽""", delta=f"""{f"{cp3-cp1:,}".replace(',', '.')} ₽""", border=False, help='Баланс портфеля (руб.) в результате торговой стратегии MVO.')
@@ -374,11 +376,11 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
     diagram2, tab2 = shares_tree(trades, tab1)
     st.plotly_chart(diagram2, use_container_width=True)
     tab2_gr = tab2.groupby('Сектор', as_index=False).agg(most_buyed=('Куплено, шт.', 'sum')).sort_values(by='most_buyed', ascending=False).iloc[0].to_dict()
-    tab_best_share = tab2.sort_values(by='Профит, руб.', ascending=False).iloc[0].to_dict()
+    tab_best_share = tab2.sort_values(by='Прибыль, руб.', ascending=False).iloc[0].to_dict()
     if tab2_gr['Сектор'] == tab_best_share['Сектор']:
-        st.info(f"""⚡️⚡️⚡️Агент считает наиболее перспективным сектор экономики "{tab2_gr['Сектор']}".За период торговли было куплено {round(tab2_gr['most_buyed'],1)} шт. акций компаний из этого сектора, также наиболее прибыльные торги
+        st.info(f"""⚡️⚡️⚡️Агент считает наиболее перспективным сектор экономики "{tab2_gr['Сектор']}".За период торговли было куплено {round(tab2_gr['most_buyed'])} шт. акций компаний из этого сектора, также наиболее прибыльные торги
                  были произведены агентом акциями компании из сектора "{tab2_gr['Сектор']}" - {tab_best_share['Акция']}, она в конечном итоге
-                 принесла в портфель около {round(tab_best_share['Профит, руб.'])} ₽.
+                 принесла в портфель около {round(tab_best_share['Прибыль, руб.'])} ₽.
                  """)
         st.info(f"""❗Общая рекомендация - обратить внимание на сектор экономи "{tab2_gr['Сектор']}",
                  а это в первую очередь акции: {', '.join([k for k,v  in sector_info.items() if v == tab2_gr['Сектор']])}.""")
@@ -386,7 +388,7 @@ def model_train_predict(selected_shares, capital, start_date, end_date, selected
         st.info(f"""⚡️⚡️⚡️ Агент считает наиболее перспективным сектор экономики "{tab2_gr['Сектор']}".
         За период торговли было куплено {round(tab2_gr['most_buyed'])} шт. акций компаний из этого сектора,
         однако наиболее прибыльные торги были произведены агентом акциями компании из сектора "{tab_best_share['Сектор']}" -
-        {tab_best_share['Акция']}, она в конечном итоге принесла в портфель около {round(tab_best_share['Профит, руб.'])} ₽.
+        {tab_best_share['Акция']}, она в конечном итоге принесла в портфель около {round(tab_best_share['Прибыль, руб.'])} ₽.
         """)
         st.info(f"""
         ❗ Общая рекомендация - обратить внимание на сектор экономики "{tab2_gr['Сектор']}",

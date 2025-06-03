@@ -44,6 +44,12 @@ def main_page():
         st.session_state.selected_model = None
     if "training_result" not in st.session_state:
         st.session_state.training_result = None
+    if "capital" not in st.session_state:
+        st.session_state.capital = 100_000
+    if "start_date" not in st.session_state:
+        st.session_state.start_date = datetime.today() - timedelta(days=7)
+    if "end_date" not in st.session_state:
+        st.session_state.end_date = datetime.today()
 
     # Используем временную переменную для выбора в форме
     with st.form("stock_form"):
@@ -55,7 +61,7 @@ def main_page():
             placeholder ='Выберите акции'
         )
 
-        capital = st.number_input("Капитал для торговли (руб.)", min_value=10000, max_value=5_000_000, step=10000, value=100_000)
+        capital = st.number_input("Капитал для торговли (руб.)", min_value=10000, max_value=5_000_000, step=10000, value=st.session_state.capital)
         col1, col2 = st.columns(2)
 
         min_start_date = datetime.today() - timedelta(days=365*7)
@@ -65,12 +71,12 @@ def main_page():
 
         with col1:
             start_date = st.date_input("Дата начала",
-                                       value=datetime.today() - timedelta(days=7),
+                                       value=st.session_state.start_date,
                                        min_value=min_start_date.date(),
                                        max_value=max_start_date.date())
         with col2:
             end_date = st.date_input("Дата окончания",
-                                     value=datetime.today(),
+                                     value=st.session_state.end_date,
                                     min_value=min_end_date.date(),
                                     max_value=max_end_date.date())
 
@@ -83,7 +89,6 @@ def main_page():
 
         submitted = st.form_submit_button("Подтвердить выбор")
 
-# -----------------------------------------------------------------------------------------------------------------------------------
 
     if submitted:
         if not selected:
@@ -228,10 +233,6 @@ def main_page():
     #     st.markdown("### Текущие параметры:")
     #     st.json(st.session_state.selected_params)
 
-
-
-
-# ------------------------------------------------------------------------
 
 def model_detail_page():
     st.markdown(f"### {st.session_state.selected_model}")
