@@ -24,6 +24,8 @@ def show_metrics(metrics):
     cols = st.columns(len(metrics))
     for col, (label, value) in zip(cols, metrics.items()):
         with col:
+                                # background-color: white;
+
             st.markdown(
                 f"""
                 <div style="
@@ -32,7 +34,6 @@ def show_metrics(metrics):
                     padding: 5px;
                     margin-bottom:20px;
                     text-align: center;
-                    background-color: white;
                     ">
                     <div style="font-size: 16px; font-weight: bold; color: #404040;">
                         {format_number(value)}
